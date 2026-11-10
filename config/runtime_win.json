@@ -1,0 +1,16 @@
+{
+  "schema_version": 2,
+  "platform": "windows",
+  "architecture": "x64",
+  "artifacts": {
+    "runtime": {
+      "provider": "github_release",
+      "repository": "",
+      "tag": "",
+      "asset": "",
+      "sha256": "",
+      "archive": "tar.gz",
+      "install": [{"source": "runtime", "destination": "runtime"}]
+    }
+  }
+}

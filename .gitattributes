@@ -1,0 +1,59 @@
+# Normalize text files unless a more specific rule below overrides it.
+* text=auto
+
+# Source code: keep LF across Windows and macOS.
+*.c text eol=lf
+*.cc text eol=lf
+*.cpp text eol=lf
+*.cxx text eol=lf
+*.h text eol=lf
+*.hh text eol=lf
+*.hpp text eol=lf
+*.m text eol=lf
+*.mm text eol=lf
+*.cmake text eol=lf
+CMakeLists.txt text eol=lf
+
+# Scripts, config, and docs.
+*.py text eol=lf
+*.sh text eol=lf
+*.json text eol=lf
+*.xml text eol=lf
+*.qrc text eol=lf
+*.ui text eol=lf
+*.md text eol=lf
+*.txt text eol=lf
+*.ts text eol=lf
+*.plist text eol=lf
+readme text eol=lf
+README text eol=lf
+README.* text eol=lf
+
+# Vendored dependencies: keep their original bytes/line endings.
+3rd/** -text
+depends/** -text
+
+# Windows-only project/script files.
+*.bat text eol=crlf
+*.cmd text eol=crlf
+*.sln text eol=crlf
+*.vcxproj text eol=crlf
+*.props text eol=crlf
+*.targets text eol=crlf
+*.rc text eol=crlf
+
+# Binary files.
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.bmp binary
+*.ico binary
+*.dll binary
+*.lib binary
+*.exe binary
+*.pdb binary
+*.ilk binary
+*.idb binary
+*.zip binary
+*.7z binary
+*.dmp binary

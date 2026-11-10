@@ -1,0 +1,39 @@
+{
+    "schema_version": 2,
+    "platform": "macos",
+    "architecture": "arm64",
+    "artifacts": {
+        "obs_plugin_sdk": {
+            "provider": "github_release",
+            "repository": "pro-cam/cici-build-dependencies",
+            "tag": "obs-plugin-sdk-macos-arm64-30.1.1-r1",
+            "asset": "obs-plugin-sdk-macos-arm64-30.1.1-r1.tar.gz",
+            "sha256": "09382a2addcf9c8b7fc695f7e2e6e537e78ec6dddce3019505a0a74682ee79c7",
+            "archive": "tar.gz",
+            "install": [
+                {
+                    "source": "obs-sdk",
+                    "destination": "obs-sdk"
+                }
+            ]
+        },
+        "qt_sdk": {
+            "provider": "github_release",
+            "repository": "pro-cam/cici-build-dependencies",
+            "tag": "qt-sdk/macos-arm64/obsqt-6.6.2-tools-6.9.2-r1",
+            "asset": "qt-sdk-macos-arm64-obsqt-6.6.2-tools-6.9.2-r1.tar.gz",
+            "sha256": "cae4825da6ef44931b10aef07d85d01fd3b22eeb4df6adefe4b7955d060e79a5",
+            "archive": "tar.gz",
+            "install": [
+                {
+                    "source": "obsQT",
+                    "destination": "obsQT"
+                },
+                {
+                    "source": "QTTool",
+                    "destination": "QTTool"
+                }
+            ]
+        }
+    }
+}

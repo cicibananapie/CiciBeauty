@@ -1,0 +1,12 @@
+<!--
+SPDX-FileCopyrightText: BANANAPIE LIMITED
+SPDX-License-Identifier: GPL-2.0-or-later
+See LICENSES/GPL-2.0-or-later.txt for the full license text.
+-->
+
+<RCC>
+    <qresource prefix="/cicibeauty/translations">
+        <file>cicibeauty_zh_TW.qm</file>
+        <file>cicibeauty_en_US.qm</file>
+    </qresource>
+</RCC>

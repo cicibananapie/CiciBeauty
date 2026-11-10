@@ -1,0 +1,18 @@
+/build*/
+/depends/
+/bin/
+/dist/
+*.qm
+qrc_translations.cpp
+ui_*.h
+.DS_Store
+__pycache__/
+*.pyc
+CMakeLists.txt.user
+
+# Private inspection tools and rules do not belong in this public repository.
+/scripts/check_binary_sanitization.py
+/scripts/check_runtime_log_sanitization.py
+/scripts/tests/test_check_binary_sanitization.py
+/scripts/tests/test_check_runtime_log_sanitization.py
+/scripts/local_checks/
