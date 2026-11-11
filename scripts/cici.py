@@ -12,6 +12,7 @@ import os
 import re
 import subprocess
 import sys
+import tempfile
 import time
 from pathlib import Path
 
@@ -49,7 +50,8 @@ def create_parser() -> argparse.ArgumentParser:
         command = commands.add_parser(name)
         command.add_argument("--build-dir", type=Path, default=ROOT / "build")
         command.add_argument("--config", choices=("Debug", "Release", "RelWithDebInfo"), default="Debug")
-        command.add_argument("--version", default="0.0.0")
+        command.add_argument("--version", default="0.0.0" if name == "build" else None,
+                             help="plugin version; defaults to the selected runtime version when packaging")
         command.add_argument("--channel-id", default="debug_channel" if name == "dev" else "")
         if name != "dev":
             command.add_argument("--official", action="store_true")
@@ -76,7 +78,7 @@ def main(argv: list[str] | None = None) -> None:
     args = parser.parse_args(argv)
     if sys.platform not in ("darwin", "win32"):
         parser.error("Only macOS and Windows are supported")
-    if not re.fullmatch(r"[0-9]+\.[0-9]+\.[0-9]+", args.version):
+    if args.version is not None and not re.fullmatch(r"[0-9]+\.[0-9]+\.[0-9]+", args.version):
         parser.error("version must have the form X.Y.Z")
     if not re.fullmatch(r"[A-Za-z0-9_-]*", args.channel_id):
         parser.error("channel-id must contain only ASCII letters, digits, underscores and hyphens")
@@ -87,6 +89,41 @@ def main(argv: list[str] | None = None) -> None:
 
 def run(args) -> None:
     """Run a prepared build request; internal source integration supplies its runtime here."""
+    if args.command != "build" and not args.ide:
+        from package import prepare_runtime
+        from runtime_package import validate_runtime
+        with tempfile.TemporaryDirectory(prefix="cici-runtime-") as temporary:
+            args.runtime_root = prepare_runtime(args, Path(temporary))
+            manifest = validate_runtime(args.runtime_root,
+                                        platform="macos" if sys.platform == "darwin" else "windows",
+                                        version=args.version, official=args.official)
+            if args.version is None:
+                args.version = manifest["version"]
+            run_prepared(args)
+    else:
+        if args.version is None:
+            args.version = "0.0.0"
+        run_prepared(args)
+
+
+def validate_official_source(version: str) -> None:
+    tag = f"{'macos' if sys.platform == 'darwin' else 'windows'}_{version}"
+
+    def git(*arguments):
+        return subprocess.run(["git", "-C", str(ROOT), *arguments],
+                              check=True, capture_output=True, text=True).stdout.strip()
+
+    try:
+        tagged_commit = git("rev-parse", f"refs/tags/{tag}^{{commit}}")
+    except subprocess.CalledProcessError as error:
+        raise ValueError(f"Plugin tag {tag!r} does not exist") from error
+    if git("rev-parse", "HEAD") != tagged_commit:
+        raise ValueError(f"Plugin HEAD does not match required tag {tag!r}")
+    if git("status", "--porcelain", "--untracked-files=all"):
+        raise ValueError("Official plugin builds require a clean worktree")
+
+
+def run_prepared(args) -> None:
     if not args.build_id:
         args.build_id = f"{'release' if args.official else 'dev'}-{time.time_ns()}"
     args.symbol_archive_dir = (default_symbol_storage_root() / "CiciBeauty" / (args.channel_id or "default")
@@ -97,6 +134,7 @@ def run(args) -> None:
     if args.official and not args.ide:
         if args.build_dir.exists() and any(args.build_dir.iterdir()):
             raise ValueError("Official builds require an empty --build-dir; preserve earlier builds and symbols.")
+        validate_official_source(args.version)
         if sys.platform == "win32":
             validate_pdb_output_root(args.pdb_output_root)
             (args.pdb_output_root / args.config).mkdir(parents=True, exist_ok=False)

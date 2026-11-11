@@ -10,6 +10,10 @@ set(3RD_DIR "${CICI_PUBLIC_SOURCE_DIR}/3rd")
 include(cmake/CiciBuild.cmake)
 include(cmake/CiciObs.cmake)
 
+set(CICI_CHANNEL_ID "$ENV{CICI_CHANNEL_ID}" CACHE STRING "Plugin distribution channel")
+configure_file(cicibeauty/cicibeautyconfigure.h.in
+    "${CMAKE_CURRENT_BINARY_DIR}/generated/cicibeautyconfigure.h" @ONLY)
+
 if(CICI_BUILD_TESTS)
     enable_testing()
 endif()

@@ -40,6 +40,7 @@
 #include "cicibeautyfilterinstance.h"
 #include "cicibase.h"
 #include "ciciconfigure.h"
+#include "cicibeautyconfigure.h"
 #include "effectcatalog.h"
 #include "i18nsupport.h"
 #include "log.h"
@@ -817,7 +818,10 @@ void CiciBeautyApp::startGlobalServices() {
     const char* obsVersion = obs_get_version_string();
     if (LumaClient::instance().start()) {
         LumaClient::instance().postMsg(cici::protocol::initializeSession("obs", obsVersion != nullptr ? obsVersion : "",
-                                                                         ProcessThreadOp::pid(), startedAtMs));
+                                                                         ProcessThreadOp::pid(), startedAtMs,
+                                                                         to_char(std::u8string(CICI_VERSION)),
+                                                                         isOfficialBuild(),
+                                                                         to_char(std::u8string(CICI_CHANNEL_ID))));
     }
     CiciReport::reportEvent(KEVT_APP_LAUNCH, nlohmann::json::object({
         {"launch_source", "obs_plugin"},

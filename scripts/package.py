@@ -90,6 +90,27 @@ def copy_qt_platform_plugins(source_dir, target_dir, config):
         )
     print("info: copy Qt platform plugins: {} -> {}".format(source_path.name, target_dir))
 
+def prepare_runtime(args, stage: Path) -> Path:
+    platform = "macos" if sys.platform == "darwin" else "windows"
+    if args.runtime_package:
+        archive = args.runtime_package.resolve()
+        artifact = Artifact("runtime", "", "", archive.name, "", "tar.gz", ())
+        extracted = stage / "extracted"
+        stage_artifact(artifact, archive, extracted)
+        return extracted / "runtime"
+    descriptor = json.loads(args.runtime_config.read_text(encoding="utf-8"))
+    if not descriptor.get("artifacts", {}).get("runtime", {}).get("repository"):
+        raise ValueError(f"Runtime Release is not configured: {args.runtime_config}. "
+                         "Publish the runtime and pin its repository, tag, asset and SHA-256 first.")
+    config = load_dependency_config(args.runtime_config, expected_platform=platform)
+    if config.architecture != ("arm64" if platform == "macos" else "x64"):
+        raise ValueError("Runtime dependency architecture mismatch")
+    if len(config.artifacts) != 1 or tuple(t.destination.as_posix() for t in config.artifacts[0].install) != ("runtime",):
+        raise ValueError("Runtime dependency config must install exactly one artifact into runtime")
+    install_dependencies(config, project_root=stage)
+    return stage / "depends" / "runtime"
+
+
 def assemble(args, binaries: Path) -> list[Path]:
     platform = "macos" if sys.platform == "darwin" else "windows"
     output = args.output_dir.resolve()
@@ -99,27 +120,11 @@ def assemble(args, binaries: Path) -> list[Path]:
         raise ValueError("channel-id must contain only ASCII letters, digits, underscores and hyphens")
     with tempfile.TemporaryDirectory(prefix="cici-package-") as temporary:
         stage = Path(temporary)
-        runtime = stage / "runtime"
-        if args.runtime_package:
-            archive = args.runtime_package.resolve()
-            artifact = Artifact("runtime", "", "", archive.name, "", "tar.gz", ())
-            extracted = stage / "extracted"
-            stage_artifact(artifact, archive, extracted)
-            runtime = extracted / "runtime"
-        else:
-            descriptor = json.loads(args.runtime_config.read_text(encoding="utf-8"))
-            if not descriptor.get("artifacts", {}).get("runtime", {}).get("repository"):
-                raise ValueError(f"Runtime Release is not configured: {args.runtime_config}. "
-                                 "Publish the runtime and pin its repository, tag, asset and SHA-256 first.")
-            config = load_dependency_config(args.runtime_config, expected_platform=platform)
-            if config.architecture != ("arm64" if platform == "macos" else "x64"):
-                raise ValueError("Runtime dependency architecture mismatch")
-            if len(config.artifacts) != 1 or tuple(t.destination.as_posix() for t in config.artifacts[0].install) != ("runtime",):
-                raise ValueError("Runtime dependency config must install exactly one artifact into runtime")
-            install_dependencies(config, project_root=stage)
-            runtime = stage / "depends" / "runtime"
+        runtime = getattr(args, "runtime_root", None)
+        if runtime is None:
+            runtime = prepare_runtime(args, stage)
         manifest = validate_runtime(runtime, platform=platform, version=args.version,
-                                    config=args.config, channel=args.channel_id, official=args.official)
+                                    official=args.official)
         public_binaries = stage / "public-binaries"
         names = (("cicibeauty.so", "cicibeautyStub.plugin") if platform == "macos"
                  else ("cicibeauty.dll", "cicibeautyStub.dll"))

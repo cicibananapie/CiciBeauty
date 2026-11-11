@@ -33,18 +33,21 @@ when configuring CMake. That directory contains `obs-sdk`, `obsQT`, and `QTTool`
 
 Use a matching private runtime archive, containing the helpers, installer,
 runtime libraries, and engine resources. The archive has a `runtime/` root and
-a `runtime-manifest.json` recording its version, channel, configuration, platform,
+a `runtime-manifest.json` recording its version, configuration, platform,
 architecture, and source commits. It must not contain the plugin or loader.
 
 ```sh
-python3 scripts/cici.py package --version 1.0.0 --config Release \
+python3 scripts/cici.py package --config Release \
   --channel-id production --pull-deps
 ```
 
 This creates a non-official package without company signing credentials. On
 macOS, the default is ad-hoc signing; Windows skips the signing step. `Release`
 selects the compilation configuration and does not enable official packaging.
-Set the example version and channel to match the selected runtime.
+The plugin version defaults to the selected runtime's version. The channel is a
+plugin distribution setting; the same runtime can be used by multiple channels.
+Non-official builds can override `--version`, including a version different from
+the runtime.
 
 By default the entry point reads `config/runtime_mac.json` or
 `config/runtime_win.json`. Each file pins one GitHub Release repository, tag,
@@ -59,7 +62,7 @@ descriptor. There is no local-runtime/source option in this public CLI.
 For local OBS development, use `dev` with a matching binary runtime:
 
 ```sh
-python3 scripts/cici.py dev --version 1.0.0 --channel-id production --pull-deps
+python3 scripts/cici.py dev --channel-id production --pull-deps
 ```
 
 `dev` creates a non-official package, stages it under the public build directory,
@@ -68,8 +71,8 @@ By default each development package uses a separate directory under `dist/`.
 Add `--ide` to configure and open the plugin project without building
 or deploying packages.
 
-The packager verifies the runtime metadata, builds the public plugin, and creates
-the installer and update archive in `dist/`. Existing installation and updater
+The entry point prepares and verifies the runtime before compiling the public
+plugin, then creates the installer and update archive in `dist/`. Existing installation and updater
 archive layouts are preserved. `--stage-dir` optionally retains the assembled
 runtime for local deployment. Use a new output directory for each build.
 
@@ -85,8 +88,8 @@ is ignored for that purpose.
 macOS disk images use `create-dmg` (`brew install create-dmg`) and retain the
 direct-run installer layout.
 
-Both `dev` and `package` generate an installer and update ZIP. The plugin's
-version and channel must match the selected runtime. A Debug, non-official plugin
+Both `dev` and `package` generate an installer and update ZIP. Official packages
+require the plugin and runtime versions to match. A Debug, non-official plugin
 can use a Release, official runtime; their build configurations and signing
 flags do not have to match.
 
@@ -112,6 +115,16 @@ tools are configured:
 Official builds require an empty `--build-dir`; use a new build directory rather
 than reusing the one from the examples above. Signing credentials are never
 checked into this repository.
+
+Official plugin builds also require a clean worktree and HEAD at
+`macos_<version>` or `windows_<version>`. The runtime producer separately checks
+the matching version tags in the private runtime and MRE repositories. An
+official package rejects a runtime version mismatch before compiling the plugin.
+
+At startup, the plugin sends its version, official-build flag, and channel in
+`session.initialize`. The runtime logs version or official-build differences and
+continues running; each side retains its own compiled version and build mode.
+Statistics and crash reports use the plugin session's channel.
 
 ## Symbols and official builds
 

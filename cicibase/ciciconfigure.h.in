@@ -7,10 +7,7 @@
 // Replace the version string.
 #define CICI_VERSION u8"@CICI_VERSION@"
 
-// Channel ID passed through by the Python packaging script.
-#define CICI_CHANNEL_ID u8"@CICI_CHANNEL_ID@"
-
-// Minimum OBS version supported by the plugin.
+// Minimum OBS version supported by the plugin and installer.
 #define CICI_MIN_SUPPORTED_OBS_VERSION u8"@CICI_MIN_SUPPORTED_OBS_VERSION@"
 
 // Decide whether to define the macro based on the OFFICIAL_BUILD boolean.

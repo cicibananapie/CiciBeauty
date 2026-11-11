@@ -12,7 +12,7 @@
 
 #include "../qstringconv.h"
 #include "../lumaclient.h"
-#include "ciciconfigure.h"
+#include "cicibeautyconfigure.h"
 #include "log.h"
 #include "misc.h"
 #include "nlohmann/json.hpp"

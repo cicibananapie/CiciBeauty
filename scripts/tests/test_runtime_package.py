@@ -29,7 +29,7 @@ class RuntimePackageTests(unittest.TestCase):
         self.runtime = self.root / "runtime"
         self.runtime.mkdir()
         self.manifest = {"schema_version": 1, "platform": "windows", "architecture": "x64",
-                         "version": "1.2.3", "configuration": "Debug", "channel": "test",
+                         "version": "1.2.3", "configuration": "Debug",
                          "official_build": False}
         (self.runtime / "runtime-manifest.json").write_text(json.dumps(self.manifest))
         for name in ("installer/ciciinstaller.exe", "root/cicirunner.exe", "root/uninstall.exe",
@@ -43,7 +43,7 @@ class RuntimePackageTests(unittest.TestCase):
 
     def validate(self, **kwargs):
         return validate_runtime(self.runtime, **dict(
-            {"platform": "windows", "version": "1.2.3", "config": "Debug", "channel": "test"}, **kwargs))
+            {"platform": "windows", "version": "1.2.3"}, **kwargs))
 
     def test_matching_runtime_and_missing_helper(self):
         self.assertEqual(self.validate(), self.manifest)
@@ -52,9 +52,9 @@ class RuntimePackageTests(unittest.TestCase):
             self.validate()
 
     def test_mismatch_and_bundled_plugin_are_rejected(self):
-        for field, value in (("version", "1.2.4"), ("channel", "other"), ("platform", "macos")):
+        for field, value in (("version", "1.2.4"), ("platform", "macos")):
             with self.subTest(field=field), self.assertRaises(ValueError):
-                self.validate(**{field: value})
+                self.validate(official=True, **{field: value})
         (self.runtime / "slot/cicibeauty.dll").write_bytes(b"stale-plugin")
         with self.assertRaises(ValueError):
             self.validate()
@@ -62,10 +62,14 @@ class RuntimePackageTests(unittest.TestCase):
     def test_release_official_runtime_accepts_debug_nonofficial_plugin(self):
         self.manifest.update(configuration="Release", official_build=True)
         (self.runtime / "runtime-manifest.json").write_text(json.dumps(self.manifest))
-        self.assertEqual(self.manifest, self.validate(config="Debug", official=False))
+        self.assertEqual(self.manifest, self.validate(official=False))
+
+    def test_development_plugin_version_can_differ_from_runtime(self):
+        self.assertEqual(self.manifest, self.validate(version="9.8.7", official=False))
 
     def test_malformed_runtime_metadata_is_rejected(self):
-        for field, value in (("configuration", "invalid"), ("official_build", "false"), ("architecture", "arm64")):
+        for field, value in (("configuration", "invalid"), ("official_build", "false"),
+                             ("architecture", "arm64"), ("version", "latest")):
             with self.subTest(field=field):
                 manifest = dict(self.manifest, **{field: value})
                 (self.runtime / "runtime-manifest.json").write_text(json.dumps(manifest))

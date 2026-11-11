@@ -179,14 +179,6 @@ target_precompile_headers(ciciglobal_pch INTERFACE
     "$<$<COMPILE_LANGUAGE:OBJCXX>:${CICI_PUBLIC_SOURCE_DIR}/cicibase/include/ciciglobal_pch.h>"
 )
 
-if(NOT DEFINED CICI_CHANNEL_ID OR "${CICI_CHANNEL_ID}" STREQUAL "")
-    if(DEFINED ENV{CICI_CHANNEL_ID} AND NOT "$ENV{CICI_CHANNEL_ID}" STREQUAL "")
-        set(CICI_CHANNEL_ID "$ENV{CICI_CHANNEL_ID}")
-    else()
-        set(CICI_CHANNEL_ID "")
-    endif()
-endif()
-
 # 2. Configure generated headers. Use @ONLY to avoid touching script-style placeholders.
 configure_file(
     "${CICI_PUBLIC_SOURCE_DIR}/cicibase/ciciconfigure.h.in"
