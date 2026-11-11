@@ -4,11 +4,13 @@
 
 from __future__ import annotations
 
+import ctypes
 import hashlib
 import json
 import os
 import re
 import shutil
+import string
 import sys
 import subprocess
 import tempfile
@@ -16,12 +18,47 @@ import zipfile
 from pathlib import Path
 
 
+def _windows_fixed_drives() -> list[Path]:
+    get_drive_type = ctypes.windll.kernel32.GetDriveTypeW
+    get_drive_type.argtypes = [ctypes.c_wchar_p]
+    get_drive_type.restype = ctypes.c_uint
+    # DRIVE_FIXED excludes removable, optical, network and unavailable drives.
+    return [
+        Path(f"{letter}:/")
+        for letter in string.ascii_uppercase
+        if get_drive_type(f"{letter}:\\") == 3
+    ]
+
+
+def _windows_symbol_storage_root() -> Path:
+    candidates = []
+    for drive in _windows_fixed_drives():
+        try:
+            candidates.append((shutil.disk_usage(drive).free, drive))
+        except OSError:
+            continue
+    for _, drive in sorted(candidates, key=lambda item: item[0], reverse=True):
+        root = drive / "CiciSymbols"
+        try:
+            root.mkdir(exist_ok=True)
+            with tempfile.TemporaryFile(dir=root) as probe:
+                probe.write(b"\0")
+                probe.flush()
+        except OSError:
+            continue
+        return root
+    raise OSError(
+        "No writable fixed drive is available for CiciSymbols. "
+        "Set CICI_SYMBOL_ROOT to a writable symbol storage directory."
+    )
+
+
 def default_symbol_storage_root() -> Path:
     configured = os.environ.get("CICI_SYMBOL_ROOT", "").strip()
     if configured:
         return Path(configured).expanduser().resolve()
     if sys.platform == "win32":
-        return Path("D:/CiciSymbols")
+        return _windows_symbol_storage_root()
     return Path.home() / "Library/Application Support/CiciBuild/Symbols"
 
 

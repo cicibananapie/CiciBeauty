@@ -17,6 +17,60 @@ import symbols_utils as symbols
 
 
 class SymbolArchiveTests(unittest.TestCase):
+    def test_windows_drive_selection_excludes_non_fixed_drives(self):
+        with mock.patch.object(symbols.ctypes, "windll", create=True) as windll:
+            windll.kernel32.GetDriveTypeW.side_effect = lambda drive: {
+                "C:\\": 3, "E:\\": 2, "F:\\": 4, "G:\\": 5, "H:\\": 3,
+            }.get(drive, 1)
+            self.assertEqual([Path("C:/"), Path("H:/")], symbols._windows_fixed_drives())
+
+    def test_windows_symbol_root_uses_available_drive_with_most_free_space(self):
+        with tempfile.TemporaryDirectory() as directory:
+            drives = [Path(directory) / name for name in ("system", "data")]
+            for drive in drives:
+                drive.mkdir()
+            for available, expected in ((drives[:1], drives[0]), (drives, drives[1])):
+                with self.subTest(available=available), mock.patch.object(
+                    symbols, "_windows_fixed_drives", return_value=available
+                ), mock.patch.object(
+                    symbols.shutil, "disk_usage",
+                    side_effect=lambda drive: mock.Mock(free=100 if drive == drives[0] else 200),
+                ):
+                    root = symbols._windows_symbol_storage_root()
+                self.assertEqual(expected / "CiciSymbols", root)
+                self.assertTrue(root.is_dir())
+                self.assertEqual([], list(root.iterdir()))
+
+    def test_windows_symbol_root_skips_inaccessible_and_unwritable_drives(self):
+        with tempfile.TemporaryDirectory() as directory:
+            missing, blocked, writable = [
+                Path(directory) / name for name in ("missing", "blocked", "writable")
+            ]
+            blocked.mkdir()
+            writable.mkdir()
+            # A file at the target path prevents creating a symbol directory.
+            (blocked / "CiciSymbols").write_bytes(b"existing file")
+            with mock.patch.object(
+                symbols, "_windows_fixed_drives", return_value=[missing, blocked, writable]
+            ), mock.patch.object(
+                symbols.shutil, "disk_usage",
+                side_effect=[OSError("unavailable"), mock.Mock(free=200), mock.Mock(free=100)],
+            ):
+                self.assertEqual(writable / "CiciSymbols", symbols._windows_symbol_storage_root())
+            self.assertEqual(b"existing file", (blocked / "CiciSymbols").read_bytes())
+
+    def test_windows_symbol_root_reports_when_no_drive_is_usable(self):
+        with mock.patch.object(symbols, "_windows_fixed_drives", return_value=[]):
+            with self.assertRaisesRegex(OSError, "Set CICI_SYMBOL_ROOT"):
+                symbols._windows_symbol_storage_root()
+
+    def test_configured_symbol_root_bypasses_drive_selection(self):
+        with tempfile.TemporaryDirectory() as directory:
+            with mock.patch.dict(symbols.os.environ, {"CICI_SYMBOL_ROOT": directory}):
+                with mock.patch.object(symbols, "_windows_symbol_storage_root") as select:
+                    self.assertEqual(Path(directory).resolve(), symbols.default_symbol_storage_root())
+            select.assert_not_called()
+
     def test_archive_preserves_files_hashes_and_build_metadata(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)

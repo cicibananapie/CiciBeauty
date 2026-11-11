@@ -100,7 +100,9 @@ additionally supports `--ide`. Run each command with `--help` for defaults.
 ## Symbols and official builds
 
 Windows linker PDBs are written directly to the permanent directory
-`D:/CiciSymbols/CiciBeauty/<channel>/<version>/<build-id>/windows-x64/plugin/<config>`.
+`<drive>:/CiciSymbols/CiciBeauty/<channel>/<version>/<build-id>/windows-x64/plugin/<config>`.
+The default storage root is chosen from writable fixed drives, preferring the
+drive with the most free space. Removable and network drives are excluded.
 Set `CICI_SYMBOL_ROOT` to change the storage root, or `--pdb-output-root` to
 select the linker output directory. Official PDB paths must be absolute and
 outside user profiles, and an existing configuration directory is rejected to
