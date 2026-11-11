@@ -7,17 +7,23 @@
 #include <QList>
 #include <QMetaObject>
 #include <QWidget>
+#include <functional>
+#include <memory>
 
-#include "../effect/effectcontroller.h"
+#include "protocol/preview.h"
 #include "../modelapp.h"
 
 class QPainter;
+namespace cici::protocol {
+struct JsonMessage;
+}
 class GPURenderWidget : public QWidget, private IFilterModelChangeObserver {
     Q_OBJECT
 
 public:
     GPURenderWidget(GlobalModel *app, QWidget *parent = nullptr);
     ~GPURenderWidget() override;
+    static void autoKeying(GlobalModel* app, QObject* owner, std::function<void(uint32_t, float)> callback);
     
 protected:
     bool event(QEvent* event) override;
@@ -27,9 +33,12 @@ protected:
     void showEvent(QShowEvent* event) override;
     bool eventFilter(QObject* watched, QEvent* event) override;
 
-    virtual EffectController::NativeRenderSourceType nativeRenderSourceType() const;
+    using NativeRenderSourceType = cici::protocol::PreviewSource;
+    virtual NativeRenderSourceType nativeRenderSourceType() const;
     virtual void paintOverlay(QPainter& painter);
     void updateOverlay();
+    void updateColorPickMagnifier(int x, int y, float radius, float zoomRatio, bool active);
+    void requestColorPick(int x, int y, std::function<void(uint32_t)> callback);
 
 private:
     void onFilterModelChanged(FilterModel* oldModel, FilterModel* newModel) override;
@@ -42,6 +51,8 @@ private:
     void clearOverlayWindowFilter();
     void createNativeWindow();
     void destroyNativeWindow();
+    void onPreviewMessage(const cici::protocol::JsonMessage& message);
+    void consumePreview(const cici::protocol::PreviewFrame& frame);
 
 private:
     class OverlayWidget;
@@ -56,6 +67,9 @@ private:
     QList<QMetaObject::Connection> overlayScrollConnections_;
     void* nativeHandle_ = nullptr;   //windows:HWND, macos:NSView*
     FilterModel* nativeRenderModel_ = nullptr;
-    EffectController::NativeRenderTargetId nativeRenderId_ = 0;
+    struct Preview;
+    std::unique_ptr<Preview> preview_;
+    std::u8string previewId_;
+    std::u8string instanceId_;
     bool dpiRefreshPending_ = false;
 };

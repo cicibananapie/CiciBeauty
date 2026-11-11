@@ -11,7 +11,6 @@
 #include "nlohmann/json_fwd.hpp"
 
 class LoginLogic;
-class EffectController;
 class EffectCatalog;
 class ObsInfo;
 class AssetsMgr;
@@ -22,7 +21,7 @@ class SubscriptionController;
 class FilterModel {
 public:
 	virtual ~FilterModel() = default;
-	virtual EffectController *effectController() const = 0;
+	virtual const std::u8string& filterUuid() const = 0;
 	virtual ObsInfo *obsInfo() const = 0;
 	virtual std::u8string sourceUuid() const = 0;
 	virtual bool effectParamValue(const char8_t *jsonPath, int &value) const = 0;

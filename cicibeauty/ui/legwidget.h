@@ -42,7 +42,7 @@ private:
     void updateZoneInfo(int zone, DragType dragType, int newYPosition);
     
 private:
-    EffectController::NativeRenderSourceType nativeRenderSourceType() const override;
+    NativeRenderSourceType nativeRenderSourceType() const override;
     void paintOverlay(QPainter& painter) override;
     void mousePressEvent(QMouseEvent *event) override;
     void mouseMoveEvent(QMouseEvent *event) override;

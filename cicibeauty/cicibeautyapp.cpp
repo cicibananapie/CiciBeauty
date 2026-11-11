@@ -48,7 +48,6 @@
 #include "nlohmann/json.hpp"
 #include "obscallbackthreadlogger.h"
 #include "qstringconv.h"
-#include "effect/effectcontroller.h"
 #include "ui/commonui.h"
 #include "login/loginlogic.h"
 #include "settingconfig.h"
@@ -630,7 +629,6 @@ void CiciBeautyApp::onUISelectedSourceChanged(const std::u8string &id) {
                     ? obs_source_get_name(parent)
                     : "")
             << ", instance=" << filter
-            << ", controller=" << (filter != nullptr ? filter->effectController() : nullptr)
             << ", filterCount=" << filters_.size() << logEnd;
     if (parent != nullptr) {
         obs_source_release(parent);

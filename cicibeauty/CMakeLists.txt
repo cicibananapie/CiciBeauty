@@ -153,12 +153,6 @@ endif()
         
 SOURCE_GROUP(ui FILES ${uicontroller_FILES})
 
-set(effect_FILES
-        effect/effectcontroller.h
-        effect/effectcontroller.cpp)
-                
-SOURCE_GROUP(effect FILES ${effect_FILES})
-
 set(TS_FILES
         ${CICI_PUBLIC_SOURCE_DIR}/cicibeauty/ui/translations/cicibeauty_zh_CN.ts
         ${CICI_PUBLIC_SOURCE_DIR}/cicibeauty/ui/translations/cicibeauty_zh_TW.ts
@@ -269,7 +263,6 @@ qt_add_library(${TargetName} MODULE
                     ${feedback_FILES}
                     ${subscription_FILES}
                     ${uicontroller_FILES}
-                    ${effect_FILES}
                     ${login_FILES}
 #                   ${payment_FILES}
                     ${QM_FILES}     # Compiled translation files.
@@ -368,10 +361,12 @@ if (CICI_OS_MACOS)
     target_link_libraries(${TargetName} PRIVATE "-framework CoreML")
     target_link_libraries(${TargetName} PRIVATE "-framework Security")
     target_link_libraries(${TargetName} PRIVATE "-framework Metal")
+    target_link_libraries(${TargetName} PRIVATE "-framework IOSurface")
 elseif(CICI_OS_WINDOWS)
     target_link_libraries(${TargetName} PRIVATE obs)
     target_link_libraries(${TargetName} PRIVATE obs-frontend-api)
     target_link_libraries(${TargetName} PRIVATE shlwapi.lib)
+    target_link_libraries(${TargetName} PRIVATE d3d11 dxgi)
 else()
 message(FATAL_ERROR "Unsupported platform: cicibeauty supports only Windows and macOS")
 endif()

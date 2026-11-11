@@ -26,7 +26,6 @@
 #include "../effectcatalog.h"
 #include "../modelapp.h"
 #include "misc.h"
-#include "../effect/effectcontroller.h"
 #include "../i18nsupport.h"
 #include "../qstringconv.h"
 #include "../settingconfig.h"

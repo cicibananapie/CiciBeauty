@@ -32,7 +32,6 @@
 #include "keyingcolorpickwidget.h"
 #include "nokeyingzonewidget.h"
 #include "keyingsettingcontroller.h"
-#include "../effect/effectcontroller.h"
 #include "../modelapp.h"
 #include "misc.h"
 #include "mediatype.h"
@@ -1117,9 +1116,8 @@ void GreenScreenKeyingController::onCurrentChanged(int index) {
 
 void GreenScreenKeyingController::onAIColorPickingBtnClicked() {
     reportKeyingAction(app_, u8"ai_color_pick_click");
-    auto* effectCtrl = currentEffectController(app_);
     QPointer<GreenScreenKeyingController> self(this);
-    effectCtrl->autoKeying([self](uint32_t rgba, float similarity) {
+    GPURenderWidget::autoKeying(app_, this, [self](uint32_t rgba, float similarity) {
         (void)similarity;
         if (self == nullptr) {
             return;

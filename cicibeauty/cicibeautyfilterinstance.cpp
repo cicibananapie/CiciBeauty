@@ -11,7 +11,6 @@
 #include <vector>
 
 #include "cicibeautyapp.h"
-#include "effect/effectcontroller.h"
 #include "lumaclient.h"
 #include "videoclient.h"
 #include "protocol/settings.h"
@@ -57,7 +56,6 @@ CiciBeautyFilterInstance::CiciBeautyFilterInstance(CiciBeautyApp* app, obs_sourc
 
     obsInfo_ = std::make_unique<ObsInfo>();
     obsInfo_->registerObserver(this);
-    effectCtrl_ = std::make_unique<EffectController>(obsInfo_.get());
     video_ = std::make_unique<VideoClient>();
 
     LogInfo << "CiciBeautyFilterInstance created filter_uuid=" << filterUuid_ << logEnd;
@@ -132,10 +130,6 @@ const std::u8string& CiciBeautyFilterInstance::filterUuid() const {
 
 ObsInfo* CiciBeautyFilterInstance::obsInfo() const {
     return obsInfo_.get();
-}
-
-EffectController* CiciBeautyFilterInstance::effectController() const {
-    return effectCtrl_.get();
 }
 
 std::u8string CiciBeautyFilterInstance::sourceUuid() const {

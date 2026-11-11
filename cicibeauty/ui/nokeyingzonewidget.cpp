@@ -92,8 +92,8 @@ NokeyingZoneWidget::~NokeyingZoneWidget() {
     zones_.clear();
 }
 
-EffectController::NativeRenderSourceType NokeyingZoneWidget::nativeRenderSourceType() const {
-    return EffectController::Input;
+GPURenderWidget::NativeRenderSourceType NokeyingZoneWidget::nativeRenderSourceType() const {
+    return NativeRenderSourceType::Input;
 }
 
 void NokeyingZoneWidget::clearZoneData() {

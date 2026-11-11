@@ -13,7 +13,6 @@
 #include "log.h"
 #include "legwidget.h"
 #include "../modelapp.h"
-#include "../effect/effectcontroller.h"
 
 namespace {
 constexpr int kLegZoneEditorMaxZones = 5;
@@ -327,8 +326,8 @@ void LegZoneEditorWidget::updateZoneInfo(int zone, DragType dragType, int newYPo
     }
 }
 
-EffectController::NativeRenderSourceType LegZoneEditorWidget::nativeRenderSourceType() const {
-    return EffectController::Input;
+GPURenderWidget::NativeRenderSourceType LegZoneEditorWidget::nativeRenderSourceType() const {
+    return NativeRenderSourceType::Input;
 }
 
 void LegZoneEditorWidget::paintOverlay(QPainter& painter) {

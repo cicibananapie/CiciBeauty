@@ -13,7 +13,6 @@
 #include "log.h"
 #include "filtermodelhelpers.h"
 #include "keyingcolorpickwidget.h"
-#include "../effect/effectcontroller.h"
 #include "../modelapp.h"
 
 namespace {
@@ -64,7 +63,8 @@ void KeyingColorPickWidget::mousePressEvent(QMouseEvent *event) {
         return ;
     }
     QPointer<KeyingColorPickWidget> self(this);
-    currentEffectController(app_)->requestColorPick([self](uint32_t rgba) {
+    const qreal dpr = devicePixelRatioF();
+    requestColorPick(qRound(event->pos().x() * dpr), qRound(event->pos().y() * dpr), [self](uint32_t rgba) {
         if (!self) {
             return;
         }
@@ -74,15 +74,15 @@ void KeyingColorPickWidget::mousePressEvent(QMouseEvent *event) {
     GPURenderWidget::mousePressEvent(event);
 }
 
-EffectController::NativeRenderSourceType KeyingColorPickWidget::nativeRenderSourceType() const {
-	return EffectController::InputWithMagnifier;
+GPURenderWidget::NativeRenderSourceType KeyingColorPickWidget::nativeRenderSourceType() const {
+    return NativeRenderSourceType::InputWithMagnifier;
 }
 
 void KeyingColorPickWidget::updateMagnifier(const QPoint& pos, bool active) {
     pos_ = pos;
 
     if (!active) {
-        currentEffectController(app_)->updateColorPickMagnifier(0, 0, 0, 1.0f, false);
+        updateColorPickMagnifier(0, 0, 0, 1.0f, false);
         return;
     }
 
@@ -93,7 +93,7 @@ void KeyingColorPickWidget::updateMagnifier(const QPoint& pos, bool active) {
     const float magnifierRadius = static_cast<float>(magnifierW) * 0.5f;
     LogTrace << "updateMagnifier center:" << previewX << ", " << previewY
              << " radius(" << magnifierRadius << ")" << logEnd;
-    currentEffectController(app_)->updateColorPickMagnifier(previewX,
+    updateColorPickMagnifier(previewX,
                                                 previewY,
                                                 magnifierRadius,
                                                 kMagnifierZoomRatio,

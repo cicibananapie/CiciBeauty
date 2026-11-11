@@ -16,7 +16,6 @@
 #include "obsinfo.h"
 
 class CiciBeautyApp;
-class EffectController;
 class VideoClient;
 typedef struct obs_source obs_source_t;
 struct obs_source_frame;
@@ -28,7 +27,7 @@ public:
     CiciBeautyFilterInstance(const CiciBeautyFilterInstance&) = delete;
     CiciBeautyFilterInstance& operator=(const CiciBeautyFilterInstance&) = delete;
     ObsInfo* obsInfo() const override;
-    EffectController* effectController() const override;
+    const std::u8string& filterUuid() const override;
     std::u8string sourceUuid() const override;
     bool effectParamValue(const char8_t* path, int& value) const override;
     bool defaultEffectParamValue(const char8_t* path, int& value) const override;
@@ -52,7 +51,6 @@ private:
     std::u8string consumePendingApplyTrigger(const std::u8string& defaultTrigger);
     std::u8string consumePendingRemoveTrigger(const std::u8string& defaultTrigger);
     CiciBeautyApp* app() const;
-    const std::u8string& filterUuid() const;
     void detachObsBindings();
 
 private:
@@ -62,7 +60,6 @@ private:
     std::u8string parentUuid_;
 
     std::unique_ptr<ObsInfo> obsInfo_;
-    std::unique_ptr<EffectController> effectCtrl_;
     std::unique_ptr<VideoClient> video_;
     std::atomic<uint32_t> canvasTransform_{0};
 

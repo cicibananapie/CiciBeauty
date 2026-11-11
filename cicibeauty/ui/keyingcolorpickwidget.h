@@ -29,7 +29,7 @@ private:
     virtual void mousePressEvent(QMouseEvent *event) override;
     
 private:
-    EffectController::NativeRenderSourceType nativeRenderSourceType() const override;
+    NativeRenderSourceType nativeRenderSourceType() const override;
     void paintOverlay(QPainter& painter) override;
     void updateMagnifier(const QPoint& pos, bool active);
     

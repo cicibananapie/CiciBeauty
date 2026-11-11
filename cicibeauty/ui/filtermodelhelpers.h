@@ -7,19 +7,13 @@
 #include <assert.h>
 #include <stdint.h>
 
-#include "../effect/effectcontroller.h"
+#include "../obsinfo.h"
 #include "../modelapp.h"
 
 inline ObsInfo* currentObsInfo(GlobalModel* app) {
     assert(app != nullptr);
     auto* model = app->filterModel();
     return model != nullptr ? model->obsInfo() : nullptr;
-}
-
-inline EffectController* currentEffectController(GlobalModel* app) {
-    assert(app != nullptr);
-    auto* model = app->filterModel();
-    return model != nullptr ? model->effectController() : nullptr;
 }
 
 inline bool compatibleAtHVMode(uint32_t hv, ObsInfo::HVMode mode) {
