@@ -38,8 +38,13 @@ architecture, and source commits. It must not contain the plugin or loader.
 
 ```sh
 python3 scripts/cici.py package --version 1.0.0 --config Release \
-  --channel-id production --official --pull-deps
+  --channel-id production --pull-deps
 ```
+
+This creates a non-official package without company signing credentials. On
+macOS, the default is ad-hoc signing; Windows skips the signing step. `Release`
+selects the compilation configuration and does not enable official packaging.
+Set the example version and channel to match the selected runtime.
 
 By default the entry point reads `config/runtime_mac.json` or
 `config/runtime_win.json`. Each file pins one GitHub Release repository, tag,
@@ -77,11 +82,6 @@ The public packager does not run binary confidentiality scans. Any future local
 inspection scripts and private rules must remain outside Git; `scripts/local_checks/`
 is ignored for that purpose.
 
-Local packages use ad-hoc signing on macOS and do not require company signing
-credentials. Official packaging adds `--official`; macOS also requires
-`--sign-identity`, a notarization keychain profile, and the corresponding signing
-tools. Windows official signing uses the existing signing helper and its local
-credential configuration. Credentials are never checked into this repository.
 macOS disk images use `create-dmg` (`brew install create-dmg`) and retain the
 direct-run installer layout.
 
@@ -96,6 +96,22 @@ plugin and loader, without downloading a runtime. `package` and `dev` also accep
 `--runtime-config`, `--output-dir`, `--sign-identity` and `--stage-dir`.
 `build` and `package` accept `--official`; `dev` is always non-official and
 additionally supports `--ide`. Run each command with `--help` for defaults.
+
+## Official packaging
+
+Add `--official` to `package` only when the required signing credentials and
+tools are configured:
+
+- On macOS, supply `--sign-identity` with a valid Developer ID Application
+  identity. Configure a notarization keychain profile; `CICI_NOTARY_PROFILE`
+  selects the profile and defaults to `notarytool-password`. Official packaging
+  signs, notarizes, and staples the application and disk image.
+- On Windows, configure the signing helper and its local credentials. Official
+  packaging signs the plugin, loader, and final installer.
+
+Official builds require an empty `--build-dir`; use a new build directory rather
+than reusing the one from the examples above. Signing credentials are never
+checked into this repository.
 
 ## Symbols and official builds
 
