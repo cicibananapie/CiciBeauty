@@ -87,7 +87,7 @@ def main(argv: list[str] | None = None) -> None:
     run(args)
 
 
-def run(args) -> None:
+def run(args, *, open_ide: bool = True) -> None:
     """Run a prepared build request; internal source integration supplies its runtime here."""
     if args.command != "build" and not args.ide:
         from package import prepare_runtime
@@ -99,11 +99,11 @@ def run(args) -> None:
                                         version=args.version, official=args.official)
             if args.version is None:
                 args.version = manifest["version"]
-            run_prepared(args)
+            run_prepared(args, open_ide=open_ide)
     else:
         if args.version is None:
             args.version = "0.0.0"
-        run_prepared(args)
+        run_prepared(args, open_ide=open_ide)
 
 
 def validate_official_source(version: str) -> None:
@@ -123,7 +123,7 @@ def validate_official_source(version: str) -> None:
         raise ValueError("Official plugin builds require a clean worktree")
 
 
-def run_prepared(args) -> None:
+def run_prepared(args, *, open_ide: bool = True) -> None:
     if not args.build_id:
         args.build_id = f"{'release' if args.official else 'dev'}-{time.time_ns()}"
     args.symbol_archive_dir = (default_symbol_storage_root() / "CiciBeauty" / (args.channel_id or "default")
@@ -152,6 +152,8 @@ def run_prepared(args) -> None:
         process_deps("macos" if sys.platform == "darwin" else "windows")
     binaries = build(args)
     if args.ide:
+        if not open_ide:
+            return
         project = args.build_dir.resolve() / ("cicibeauty.xcodeproj" if sys.platform == "darwin" else "cicibeauty.sln")
         if sys.platform == "darwin":
             subprocess.run(["open", str(project)], check=True)

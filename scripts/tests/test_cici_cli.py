@@ -154,6 +154,17 @@ class BuildWorkflowTests(unittest.TestCase):
         assemble.assert_not_called()
         deploy.assert_not_called()
 
+    def test_internal_ide_configuration_can_skip_opening_the_project(self):
+        args = cici.create_parser().parse_args(["dev", "--ide"])
+        with mock.patch("cici.build") as build, mock.patch("cici.subprocess.run") as run, mock.patch(
+            "package.assemble"
+        ) as assemble, mock.patch("cici.deploy_local") as deploy:
+            cici.run(args, open_ide=False)
+        build.assert_called_once()
+        run.assert_not_called()
+        assemble.assert_not_called()
+        deploy.assert_not_called()
+
     def test_windows_build_uses_selected_visual_studio_environment(self):
         args = cici.create_parser().parse_args(["build"])
         with mock.patch("cici.sys.platform", "win32"), mock.patch(
