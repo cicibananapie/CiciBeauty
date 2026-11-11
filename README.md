@@ -9,9 +9,9 @@ and shared memory to communicate with the separately distributed runtime.
 
 Supported platforms are macOS arm64 (Xcode, macOS 15 or newer) and Windows x64
 (Visual Studio 2022 with clang-cl). Install CMake 3.22 or newer, Python 3.10 or
-newer, and GitHub CLI. The dependency downloader uses pinned release assets and
-verifies their SHA256 before extraction. The configured release assets must
-be accessible to the user; private company credentials are not part of the build.
+newer. The downloader fetches pinned public GitHub Release assets over HTTPS
+without GitHub CLI or a GitHub login, and verifies their SHA-256 before extraction.
+Private company credentials are not part of the build.
 
 OBS/Qt SDKs and the Windows VC++ redistributable are published in the public
 [`build-dependencies-v1` release](https://github.com/cicibananapie/CiciBeauty/releases/tag/build-dependencies-v1).

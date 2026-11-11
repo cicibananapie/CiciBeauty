@@ -5,6 +5,7 @@
 from __future__ import annotations
 
 import hashlib
+import http.client
 import io
 import json
 import os
@@ -12,7 +13,9 @@ import sys
 import tarfile
 import tempfile
 import unittest
+import urllib.error
 import zipfile
+from dataclasses import replace
 from pathlib import Path
 from unittest import mock
 
@@ -165,6 +168,66 @@ class ArtifactCacheTests(unittest.TestCase):
                 ),
             ),
         )
+
+    def test_download_uses_anonymous_https_and_encodes_tag_and_asset(self) -> None:
+        content = b"downloaded SDK"
+        artifact = replace(self.make_artifact(content), asset="SDK tools+1.zip")
+        with tempfile.TemporaryDirectory() as directory:
+            destination = Path(directory) / artifact.asset
+            with mock.patch.object(
+                dependency_artifacts.urllib.request,
+                "urlopen",
+                return_value=io.BytesIO(content),
+            ) as urlopen:
+                dependency_artifacts.download_github_release(artifact, destination)
+
+            self.assertEqual(content, destination.read_bytes())
+            request = urlopen.call_args.args[0]
+            self.assertEqual(
+                f"https://github.com/{REPOSITORY}/releases/download/"
+                "sdk%2Fwindows-x64%2F1.0.0-r1/SDK%20tools%2B1.zip",
+                request.full_url,
+            )
+            self.assertFalse(request.has_header("Authorization"))
+
+    def test_download_retry_discards_partial_content(self) -> None:
+        content = b"complete SDK"
+        artifact = self.make_artifact(content)
+        partial = mock.MagicMock()
+        partial.__enter__.return_value = partial
+        partial.read.side_effect = [
+            b"incomplete download with a longer tail",
+            http.client.IncompleteRead(b"", 10),
+        ]
+        with tempfile.TemporaryDirectory() as directory:
+            destination = Path(directory) / artifact.asset
+            with mock.patch.object(
+                dependency_artifacts.urllib.request,
+                "urlopen",
+                side_effect=[partial, io.BytesIO(content)],
+            ) as urlopen, mock.patch.object(dependency_artifacts.time, "sleep"):
+                dependency_artifacts.download_github_release(artifact, destination)
+
+            self.assertEqual(2, urlopen.call_count)
+            self.assertEqual(content, destination.read_bytes())
+
+    def test_failed_download_preserves_destination_and_cleans_temporary_files(self) -> None:
+        artifact = self.make_artifact(b"new SDK")
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            destination = root / artifact.asset
+            destination.write_bytes(b"existing SDK")
+            with mock.patch.object(
+                dependency_artifacts.urllib.request,
+                "urlopen",
+                side_effect=urllib.error.URLError("connection failed"),
+            ) as urlopen, mock.patch.object(dependency_artifacts.time, "sleep"):
+                with self.assertRaisesRegex(RuntimeError, "after 3 attempts"):
+                    dependency_artifacts.download_github_release(artifact, destination)
+
+            self.assertEqual(3, urlopen.call_count)
+            self.assertEqual(b"existing SDK", destination.read_bytes())
+            self.assertEqual([destination], list(root.iterdir()))
 
     def test_verified_cache_avoids_download(self) -> None:
         content = b"verified"

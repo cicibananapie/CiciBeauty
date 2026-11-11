@@ -5,15 +5,17 @@
 from __future__ import annotations
 
 import hashlib
+import http.client
 import json
 import os
 import shutil
 import stat
-import subprocess
 import sys
 import tarfile
 import tempfile
 import time
+import urllib.parse
+import urllib.request
 import zipfile
 from dataclasses import dataclass
 from pathlib import Path, PurePosixPath
@@ -211,69 +213,38 @@ def default_cache_root() -> Path:
     return Path.home() / ".cache" / "CiciBuildCache"
 
 
-def _find_gh() -> str:
-    configured = os.environ.get("CICI_GH_PATH")
-    if configured:
-        candidate = Path(configured)
-        if not candidate.is_file():
-            raise FileNotFoundError(f"CICI_GH_PATH does not exist: {candidate}")
-        return str(candidate)
-
-    executable = shutil.which("gh")
-    if executable:
-        return executable
-    if sys.platform == "win32":
-        program_files = os.environ.get("ProgramFiles", r"C:\Program Files")
-        candidate = Path(program_files) / "GitHub CLI" / "gh.exe"
-        if candidate.is_file():
-            return str(candidate)
-    raise FileNotFoundError(
-        "GitHub CLI was not found. Install gh, add it to PATH, or set CICI_GH_PATH."
-    )
-
-
 def download_github_release(
     artifact: Artifact, destination: Path, *, attempts: int = 3
 ) -> None:
-    gh = _find_gh()
+    tag = urllib.parse.quote(artifact.tag, safe="")
+    asset = urllib.parse.quote(artifact.asset, safe="")
+    request = urllib.request.Request(
+        f"https://github.com/{artifact.repository}/releases/download/{tag}/{asset}",
+        headers={"User-Agent": "CiciBeauty-build", "Accept": "application/octet-stream"},
+    )
     destination.parent.mkdir(parents=True, exist_ok=True)
     with tempfile.TemporaryDirectory(
         prefix=f".{artifact.name}-download-", dir=destination.parent
     ) as temporary_directory:
-        download_directory = Path(temporary_directory)
-        command = (
-            gh,
-            "release",
-            "download",
-            artifact.tag,
-            "--repo",
-            artifact.repository,
-            "--pattern",
-            artifact.asset,
-            "--dir",
-            str(download_directory),
-        )
+        downloaded = Path(temporary_directory) / artifact.asset
         for attempt in range(1, attempts + 1):
             try:
-                subprocess.run(command, check=True)
+                with urllib.request.urlopen(request, timeout=60) as response:
+                    with downloaded.open("wb") as output:
+                        shutil.copyfileobj(response, output, length=1024 * 1024)
                 break
-            except subprocess.CalledProcessError as error:
+            except (OSError, http.client.HTTPException) as error:
                 if attempt == attempts:
                     raise RuntimeError(
                         f"failed to download {artifact.repository} release "
                         f"{artifact.tag!r} asset {artifact.asset!r} after "
-                        f"{attempts} attempts"
+                        f"{attempts} attempts: {error}"
                     ) from error
                 print(
                     f"Download attempt {attempt} failed for {artifact.name}; retrying..."
                 )
                 time.sleep(attempt)
 
-        downloaded = download_directory / artifact.asset
-        if not downloaded.is_file():
-            raise FileNotFoundError(
-                f"GitHub CLI completed without producing the expected asset: {downloaded}"
-            )
         os.replace(downloaded, destination)
 
 
