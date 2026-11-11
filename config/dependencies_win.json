@@ -5,8 +5,8 @@
     "artifacts": {
         "qt_sdk": {
             "provider": "github_release",
-            "repository": "pro-cam/cici-build-dependencies",
-            "tag": "qt-sdk/windows-x64/obsqt-6.6.3-tools-6.9.3-r1",
+            "repository": "cicibananapie/CiciBeauty",
+            "tag": "build-dependencies-v1",
             "asset": "qt-sdk-windows-x64-obsqt-6.6.3-tools-6.9.3-r1.zip",
             "sha256": "72f4131b24d1a374eb2a2b7ced1970e1e9bd0a88197e6cf46458dc1f7854868e",
             "archive": "zip",
@@ -23,8 +23,8 @@
         },
         "obs_plugin_sdk": {
             "provider": "github_release",
-            "repository": "pro-cam/cici-build-dependencies",
-            "tag": "obs-plugin-sdk-windows-x64-30.1.1-r1",
+            "repository": "cicibananapie/CiciBeauty",
+            "tag": "build-dependencies-v1",
             "asset": "obs-plugin-sdk-windows-x64-30.1.1-r1.zip",
             "sha256": "f6e54aa9062baea6c9235bc8a72df347cdd2c019ccf5dd3700655a82dfb687c7",
             "archive": "zip",
@@ -37,8 +37,8 @@
         },
         "vcrt": {
             "provider": "github_release",
-            "repository": "pro-cam/cici-build-dependencies",
-            "tag": "vcrt/windows-x64/14.44.35211.0-r1",
+            "repository": "cicibananapie/CiciBeauty",
+            "tag": "build-dependencies-v1",
             "asset": "VC_redist.x64-14.44.35211.0.exe",
             "sha256": "cc0ff0eb1dc3f5188ae6300faef32bf5beeba4bdd6e8e445a9184072096b713b",
             "archive": "file",

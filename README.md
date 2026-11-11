@@ -13,10 +13,10 @@ newer, and GitHub CLI. The dependency downloader uses pinned release assets and
 verifies their SHA256 before extraction. The configured release assets must
 be accessible to the user; private company credentials are not part of the build.
 
-At migration time, `pro-cam/cici-build-dependencies` is private. Its OBS/Qt
-release assets must be made publicly accessible, and the dependency descriptors
-updated if moved, before an external user can use `--pull-deps`. An existing
-matching SDK can be used in the meantime as described below.
+OBS/Qt SDKs and the Windows VC++ redistributable are published in the public
+[`build-dependencies-v1` release](https://github.com/cicibananapie/CiciBeauty/releases/tag/build-dependencies-v1).
+The dependency descriptors pin their asset names and SHA-256 hashes. An existing
+matching SDK can also be used as described below.
 
 ```sh
 python3 scripts/cici.py build --pull-deps --config Debug

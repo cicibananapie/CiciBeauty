@@ -19,7 +19,7 @@ from unittest import mock
 from scripts import dependency_artifacts, pull_depends
 
 
-REPOSITORY = "pro-cam/cici-build-dependencies"
+REPOSITORY = "cicibananapie/CiciBeauty"
 
 
 def digest(data: bytes) -> str:
@@ -85,7 +85,7 @@ class DependencyConfigurationTests(unittest.TestCase):
         obs_sdk = next(
             item for item in windows.artifacts if item.name == "obs_plugin_sdk"
         )
-        self.assertEqual("obs-plugin-sdk-windows-x64-30.1.1-r1", obs_sdk.tag)
+        self.assertEqual("build-dependencies-v1", obs_sdk.tag)
         self.assertEqual(
             "f6e54aa9062baea6c9235bc8a72df347cdd2c019ccf5dd3700655a82dfb687c7",
             obs_sdk.sha256,
@@ -101,9 +101,7 @@ class DependencyConfigurationTests(unittest.TestCase):
         macos_obs_sdk = next(
             item for item in macos.artifacts if item.name == "obs_plugin_sdk"
         )
-        self.assertEqual(
-            "obs-plugin-sdk-macos-arm64-30.1.1-r1", macos_obs_sdk.tag
-        )
+        self.assertEqual("build-dependencies-v1", macos_obs_sdk.tag)
         self.assertEqual(
             "09382a2addcf9c8b7fc695f7e2e6e537e78ec6dddce3019505a0a74682ee79c7",
             macos_obs_sdk.sha256,
