@@ -128,8 +128,14 @@ def assemble(args, binaries: Path) -> list[Path]:
         public_binaries = stage / "public-binaries"
         names = (("cicibeauty.so", "cicibeautyStub.plugin") if platform == "macos"
                  else ("cicibeauty.dll", "cicibeautyStub.dll"))
+        local_bundle_root = getattr(args, "local_bundle_root", None)
+        local_contents = (local_bundle_root / args.config / "ciciinstaller.app/Contents"
+                          if local_bundle_root else None)
         for name in names:
-            copy(binaries / name, public_binaries / name)
+            source = binaries / name
+            if local_contents is not None:
+                source = local_contents / ("Frameworks" if name == "cicibeauty.so" else "Helpers") / name
+            copy(source, public_binaries / name)
         plugin_files = [public_binaries / names[0],
                         public_binaries / "cicibeautyStub.plugin/Contents/MacOS/cicibeautyStub" if platform == "macos"
                         else public_binaries / names[1]]
@@ -168,11 +174,13 @@ def assemble(args, binaries: Path) -> list[Path]:
             from codesign import codesign_bundle, codesign_file, verify_codesign
             from dittozip import create_update_zip
             from dmg import create_direct_run_dmg
-            app = stage / "ciciinstaller.app"
-            copy(runtime / app.name, app)
+            app = local_contents.parent if local_contents is not None else stage / "ciciinstaller.app"
+            if local_contents is None:
+                copy(runtime / app.name, app)
             contents = app / "Contents"
-            copy(public_binaries / "cicibeauty.so", contents / "Frameworks" / "cicibeauty.so")
-            copy(public_binaries / "cicibeautyStub.plugin", contents / "Helpers" / "cicibeautyStub.plugin")
+            if local_contents is None:
+                copy(public_binaries / "cicibeauty.so", contents / "Frameworks" / "cicibeauty.so")
+                copy(public_binaries / "cicibeautyStub.plugin", contents / "Helpers" / "cicibeautyStub.plugin")
             copy(ROOT / "cicibeauty" / "Resources", contents / "Resources")
             copy(ROOT / "LICENSES", contents / "Resources" / "LICENSES")
             copy(ROOT / "cicibase/THIRD_PARTY_NOTICES.md", contents / "Resources" / "THIRD_PARTY_NOTICES.md")
@@ -199,7 +207,7 @@ def assemble(args, binaries: Path) -> list[Path]:
                 if not notarize_file(str(dmg)) or not staple_app(str(dmg)):
                     raise RuntimeError("Disk image notarization or stapling failed")
             products = [update, dmg]
-            if args.stage_dir:
+            if args.stage_dir and app.resolve() != (args.stage_dir / app.name).resolve():
                 copy(app, args.stage_dir.resolve() / app.name)
         else:
             payload = stage / "payload"

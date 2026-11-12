@@ -132,6 +132,37 @@ class BuildWorkflowTests(unittest.TestCase):
         command = run.call_args.args[0]
         self.assertEqual(["cicibeauty", "cicibeautyStub"], command[command.index("--target") + 1:])
 
+    def test_public_build_clears_local_bundle_output_for_every_mode(self):
+        for mode in ("build", "dev", "package"):
+            with self.subTest(mode=mode):
+                args = cici.create_parser().parse_args([mode, "--version", "1.2.3"])
+                with mock.patch("cici.subprocess.run") as run:
+                    cici.build(args)
+                self.assertIn("-DCICI_LOCAL_BUNDLE_ROOT=", run.call_args_list[0].args[0])
+
+    def test_local_development_passes_bundle_root_and_deploys_the_same_app(self):
+        args = cici.create_parser().parse_args(["dev", "--version", "1.2.3"])
+        args.local_bundle_root = (self.runtime / "private build/artifacts/bin").resolve()
+        with mock.patch("cici.subprocess.run") as run:
+            cici.build(args)
+        self.assertIn(f"-DCICI_LOCAL_BUNDLE_ROOT={args.local_bundle_root.as_posix()}",
+                      run.call_args_list[0].args[0])
+        with mock.patch("cici.build"), mock.patch("package.assemble"), mock.patch("cici.deploy_local") as deploy:
+            cici.run(args)
+        deploy.assert_called_once_with(args.local_bundle_root / "Debug")
+
+    def test_local_bundle_output_is_rejected_outside_macos_development(self):
+        for mode, platform, official in (("package", "darwin", False), ("dev", "win32", False),
+                                         ("dev", "darwin", True)):
+            with self.subTest(mode=mode, platform=platform, official=official):
+                args = cici.create_parser().parse_args([mode, "--version", "1.2.3"])
+                args.local_bundle_root = self.runtime
+                args.official = official
+                with mock.patch("cici.sys.platform", platform), mock.patch("cici.subprocess.run") as run:
+                    with self.assertRaisesRegex(ValueError, "only supported for macOS development"):
+                        cici.build(args)
+                run.assert_not_called()
+
     def test_official_build_preserves_existing_build_tree(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)

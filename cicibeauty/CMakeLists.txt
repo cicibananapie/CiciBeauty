@@ -297,11 +297,6 @@ set(EXPORT_FILE "${CMAKE_CURRENT_SOURCE_DIR}/exported_symbols.exp")
     # Tell the linker to use this exported symbol allowlist.
 target_link_options(${TargetName} PRIVATE "-Wl,-exported_symbols_list,${EXPORT_FILE}")
 
-if(CICI_GEN_XCODE)
-set_target_properties(${TargetName} PROPERTIES
-    XCODE_SCHEME_ENVIRONMENT "DYLD_LIBRARY_PATH=$(TARGET_BUILD_DIR)"
-)
-endif()
 elseif(CICI_OS_WINDOWS)
 target_compile_options(${TargetName} PRIVATE /GR)
 else()

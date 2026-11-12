@@ -133,6 +133,44 @@ class RuntimePackageTests(unittest.TestCase):
                 self.assertIn(file, payload.namelist())
             self.assertEqual(payload.read("redist/VC_redist.x64.exe"), b"public-vcrt")
 
+    def test_local_macos_assembly_uses_and_signs_the_existing_development_app(self):
+        bundle_root = self.root / "private build/artifacts/bin"
+        app = bundle_root / "Debug/ciciinstaller.app"
+        contents = app / "Contents"
+        for name in ("Frameworks/cicibeauty.so", "Helpers/cicibeautyStub.plugin/Contents/MacOS/cicibeautyStub",
+                     "Frameworks/libcrypto.3.dylib"):
+            file = contents / name
+            file.parent.mkdir(parents=True, exist_ok=True)
+            file.write_bytes(b"current-local-build")
+        library = contents / "Frameworks/libcrypto.3.dylib"
+        library.chmod(0o444)
+        args = SimpleNamespace(output_dir=self.root / "output", runtime_root=self.runtime,
+                               local_bundle_root=bundle_root, version="1.2.3", config="Debug",
+                               channel_id="test", official=False, build_dir=self.root / "build",
+                               stage_dir=app.parent, build_id="local-test", sign_identity="")
+
+        def collect_symbols(_build, _config, _archive, **options):
+            self.assertEqual(b"current-local-build", options["binary_files"][0].read_bytes())
+
+        sign = mock.Mock()
+        modules = {
+            "codesign": SimpleNamespace(codesign_bundle=sign, codesign_file=mock.Mock(),
+                                        verify_codesign=lambda _: True),
+            "dittozip": SimpleNamespace(create_update_zip=lambda *_: True),
+            "dmg": SimpleNamespace(create_direct_run_dmg=mock.Mock()),
+        }
+        with mock.patch("package.sys.platform", "darwin"), mock.patch(
+            "package.validate_runtime", return_value=self.manifest
+        ), mock.patch("package.package_symbols_sidecar", side_effect=collect_symbols), mock.patch.dict(
+            sys.modules, modules
+        ):
+            products = assemble(args, self.root / "unused-flat-binaries")
+        sign.assert_called_once_with(str(app), "-", hardened_runtime=False, timestamp=False)
+        self.assertEqual(2, len(products))
+        self.assertEqual(b"current-local-build", library.read_bytes())
+        self.assertEqual(0o444, library.stat().st_mode & 0o777)
+        self.assertTrue((contents / "Resources/cicilogo.png").is_file())
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -21,6 +21,22 @@ add_subdirectory(cicibase)
 add_subdirectory(protocol)
 add_subdirectory(cicibeauty)
 add_subdirectory(cicibeautyStub)
+
+set(CICI_LOCAL_BUNDLE_ROOT "" CACHE PATH "macOS local development bundle output root")
+if(CICI_LOCAL_BUNDLE_ROOT)
+    if(NOT CICI_OS_MACOS OR NOT CICI_GEN_XCODE OR OFFICIAL_BUILD)
+        message(FATAL_ERROR "CICI_LOCAL_BUNDLE_ROOT requires a non-official macOS Xcode build")
+    endif()
+    set(_local_contents "${CICI_LOCAL_BUNDLE_ROOT}/$<CONFIG>/ciciinstaller.app/Contents")
+    set_target_properties(cicibeauty PROPERTIES
+        LIBRARY_OUTPUT_DIRECTORY "${_local_contents}/Frameworks"
+        XCODE_SCHEME_ENVIRONMENT "DYLD_LIBRARY_PATH=$(TARGET_BUILD_DIR)"
+    )
+    set_target_properties(cicibeautyStub PROPERTIES
+        LIBRARY_OUTPUT_DIRECTORY "${_local_contents}/Helpers"
+    )
+endif()
+
 if(CICI_BUILD_TESTS)
     add_subdirectory(tests/ipcwrapper)
     add_subdirectory(tests/feedbackdialog)

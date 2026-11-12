@@ -31,7 +31,12 @@ def build(args) -> Path:
     if not (directory / "CMakeCache.txt").exists():
         generator = (("-G", "Xcode", "-DCMAKE_OSX_ARCHITECTURES=arm64") if sys.platform == "darwin"
                      else ("-G", "Visual Studio 17 2022", "-A", "x64", "-T", "ClangCL"))
-    commands = [request.configure_command(generator),
+    local_bundle_root = getattr(args, "local_bundle_root", None)
+    if local_bundle_root and (sys.platform != "darwin" or args.command != "dev" or args.official):
+        raise ValueError("Local bundle output is only supported for macOS development")
+    commands = [request.configure_command(generator, (
+                    f"-DCICI_LOCAL_BUNDLE_ROOT={local_bundle_root.resolve().as_posix() if local_bundle_root else ''}",
+                )),
                 request.build_command(("cicibeauty", "cicibeautyStub"))]
     if sys.platform == "win32":
         environment = find_vs_environment()
@@ -145,7 +150,8 @@ def run_prepared(args, *, open_ide: bool = True) -> None:
             if args.command == "dev":
                 args.output_dir /= f"local-{time.time_ns()}"
         if args.command == "dev" and args.stage_dir is None:
-            args.stage_dir = args.build_dir.resolve() / "artifacts/bin" / args.config
+            args.stage_dir = (getattr(args, "local_bundle_root", None)
+                              or args.build_dir.resolve() / "artifacts/bin") / args.config
     if args.pull_deps:
         from pull_depends import process_deps
         process_deps("macos" if sys.platform == "darwin" else "windows")
