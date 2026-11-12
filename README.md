@@ -68,8 +68,8 @@ python3 scripts/cici.py dev --channel-id production --pull-deps
 `dev` creates a non-official package, stages it under the public build directory,
 and deploys its loader and location pointers to the local OBS plugin directory.
 By default each development package uses a separate directory under `dist/`.
-Add `--ide` to configure and open the plugin project without building
-or deploying packages.
+Add `--ide` to open the plugin project after the build, package assembly,
+and local deployment complete successfully.
 
 The entry point prepares and verifies the runtime before compiling the public
 plugin, then creates the installer and update archive in `dist/`. Existing installation and updater

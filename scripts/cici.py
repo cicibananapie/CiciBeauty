@@ -31,9 +31,8 @@ def build(args) -> Path:
     if not (directory / "CMakeCache.txt").exists():
         generator = (("-G", "Xcode", "-DCMAKE_OSX_ARCHITECTURES=arm64") if sys.platform == "darwin"
                      else ("-G", "Visual Studio 17 2022", "-A", "x64", "-T", "ClangCL"))
-    commands = [request.configure_command(generator)]
-    if not args.ide:
-        commands.append(request.build_command(("cicibeauty", "cicibeautyStub")))
+    commands = [request.configure_command(generator),
+                request.build_command(("cicibeauty", "cicibeautyStub"))]
     if sys.platform == "win32":
         environment = find_vs_environment()
         run_streaming_shell(f'"{environment}" && ' + " && ".join(subprocess.list2cmdline(command) for command in commands))
@@ -58,7 +57,7 @@ def create_parser() -> argparse.ArgumentParser:
             command.set_defaults(ide=False)
         else:
             command.set_defaults(official=False)
-            command.add_argument("--ide", action="store_true", help="configure and open the plugin IDE project without building")
+            command.add_argument("--ide", action="store_true", help="open the plugin IDE project after building and deploying")
         command.add_argument("--build-id", default="")
         command.add_argument("--pdb-output-root", type=Path, help="permanent linker PDB directory on Windows")
         command.add_argument("--pull-deps", action="store_true")
@@ -89,7 +88,7 @@ def main(argv: list[str] | None = None) -> None:
 
 def run(args, *, open_ide: bool = True) -> None:
     """Run a prepared build request; internal source integration supplies its runtime here."""
-    if args.command != "build" and not args.ide:
+    if args.command != "build":
         from package import prepare_runtime
         from runtime_package import validate_runtime
         with tempfile.TemporaryDirectory(prefix="cici-runtime-") as temporary:
@@ -131,7 +130,7 @@ def run_prepared(args, *, open_ide: bool = True) -> None:
                                / ("macos-arm64" if sys.platform == "darwin" else "windows-x64") / "plugin")
     if sys.platform == "win32" and args.pdb_output_root is None:
         args.pdb_output_root = args.symbol_archive_dir
-    if args.official and not args.ide:
+    if args.official:
         if args.build_dir.exists() and any(args.build_dir.iterdir()):
             raise ValueError("Official builds require an empty --build-dir; preserve earlier builds and symbols.")
         validate_official_source(args.version)
@@ -151,20 +150,17 @@ def run_prepared(args, *, open_ide: bool = True) -> None:
         from pull_depends import process_deps
         process_deps("macos" if sys.platform == "darwin" else "windows")
     binaries = build(args)
-    if args.ide:
-        if not open_ide:
-            return
-        project = args.build_dir.resolve() / ("cicibeauty.xcodeproj" if sys.platform == "darwin" else "cicibeauty.sln")
-        if sys.platform == "darwin":
-            subprocess.run(["open", str(project)], check=True)
-        else:
-            os.startfile(project)
-        return
     if args.command != "build":
         from package import assemble
         assemble(args, binaries)
         if args.command == "dev":
             deploy_local(args.stage_dir)
+    if args.ide and open_ide:
+        project = args.build_dir.resolve() / ("cicibeauty.xcodeproj" if sys.platform == "darwin" else "cicibeauty.sln")
+        if sys.platform == "darwin":
+            subprocess.run(["open", str(project)], check=True)
+        else:
+            os.startfile(project)
 
 
 if __name__ == "__main__":

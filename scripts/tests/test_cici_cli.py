@@ -143,24 +143,46 @@ class BuildWorkflowTests(unittest.TestCase):
             build.assert_not_called()
             self.assertEqual("keep", marker.read_text())
 
-    def test_ide_opens_plugin_project_without_assembly_or_deployment(self):
-        with mock.patch("cici.sys.platform", "darwin"), mock.patch(
-            "cici.build"
-        ), mock.patch("cici.subprocess.run") as run, mock.patch("package.assemble") as assemble, mock.patch(
-            "cici.deploy_local"
-        ) as deploy:
+    def test_ide_opens_plugin_project_after_build_assembly_and_deployment(self):
+        operations = []
+        with mock.patch("cici.build", side_effect=lambda _: operations.append("build") or self.runtime), mock.patch(
+            "package.assemble", side_effect=lambda *_: operations.append("assemble")
+        ) as assemble, mock.patch("cici.deploy_local", side_effect=lambda _: operations.append("deploy")), mock.patch(
+            "cici.subprocess.run", side_effect=lambda *_, **__: operations.append("open")
+        ) as run:
             cici.main(["dev", "--ide"])
+        self.assertEqual(["build", "assemble", "deploy", "open"], operations)
         run.assert_called_once_with(["open", str(cici.ROOT / "build/cicibeauty.xcodeproj")], check=True)
-        assemble.assert_not_called()
-        deploy.assert_not_called()
+        self.prepare.assert_called_once()
+        self.assertEqual("1.2.3", assemble.call_args.args[0].version)
 
-    def test_internal_ide_configuration_can_skip_opening_the_project(self):
+    def test_internal_ide_build_can_skip_opening_without_skipping_deployment(self):
         args = cici.create_parser().parse_args(["dev", "--ide"])
         with mock.patch("cici.build") as build, mock.patch("cici.subprocess.run") as run, mock.patch(
             "package.assemble"
         ) as assemble, mock.patch("cici.deploy_local") as deploy:
             cici.run(args, open_ide=False)
         build.assert_called_once()
+        run.assert_not_called()
+        assemble.assert_called_once()
+        deploy.assert_called_once()
+
+    def test_ide_compiles_both_plugin_targets(self):
+        args = cici.create_parser().parse_args(["dev", "--ide", "--version", "1.2.3"])
+        with mock.patch("cici.subprocess.run") as run:
+            cici.build(args)
+        self.assertEqual(2, run.call_count)
+        command = run.call_args.args[0]
+        self.assertIn("--build", command)
+        self.assertEqual(["cicibeauty", "cicibeautyStub"], command[command.index("--target") + 1:])
+
+    def test_ide_does_not_open_or_deploy_after_build_failure(self):
+        import subprocess
+        with mock.patch("cici.build", side_effect=subprocess.CalledProcessError(1, "build")), mock.patch(
+            "cici.subprocess.run"
+        ) as run, mock.patch("package.assemble") as assemble, mock.patch("cici.deploy_local") as deploy:
+            with self.assertRaises(subprocess.CalledProcessError):
+                cici.main(["dev", "--ide"])
         run.assert_not_called()
         assemble.assert_not_called()
         deploy.assert_not_called()
