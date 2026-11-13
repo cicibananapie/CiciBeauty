@@ -5,6 +5,7 @@
 #pragma once
 
 #include <stdint.h>
+#include <functional>
 #include <string>
 #include <vector>
 
@@ -17,6 +18,8 @@ class AssetsMgr;
 class UpdateClient;
 class ISettingConfig;
 class SubscriptionController;
+class QObject;
+class QWidget;
 
 class FilterModel {
 public:
@@ -26,8 +29,9 @@ public:
 	virtual std::u8string sourceUuid() const = 0;
 	virtual bool effectParamValue(const char8_t *jsonPath, int &value) const = 0;
 	virtual bool defaultEffectParamValue(const char8_t *jsonPath, int &value) const = 0;
-	virtual bool canActivateEffect(uint64_t effectId,
-	                               nlohmann::json& disablePatch) const = 0;
+    // Reports request failure as false with an empty patch.
+    virtual void canActivateEffect(QObject* owner, uint64_t effectId,
+                                   std::function<void(bool, const nlohmann::json&)> callback) const = 0;
 	virtual void retryEffectPackageDownload(uint64_t effectId) = 0;
         virtual void applySettingPatch(const nlohmann::json& patch) = 0;
         virtual bool replaceSettingConfig(nlohmann::json& config) = 0;
@@ -42,7 +46,8 @@ public:
 class IEffectConflictResolver {
 public:
 	virtual ~IEffectConflictResolver() = default;
-	virtual bool resolveEffectConflicts(const nlohmann::json& disablePatch) = 0;
+    virtual void confirmEffectActivation(QWidget* owner, uint64_t effectId,
+                                         std::function<void(bool)> complete) = 0;
 };
 
 class GlobalModel {

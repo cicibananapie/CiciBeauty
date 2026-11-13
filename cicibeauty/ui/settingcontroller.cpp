@@ -478,6 +478,37 @@ SettingController::~SettingController() {
     disconnectObsSignals();
 }
 
+void SettingController::confirmEffectActivation(QWidget* owner, uint64_t effectId,
+                                               std::function<void(bool)> complete) {
+    assert(owner != nullptr && effectId != 0);
+    const SettingTarget target = activeSettingTarget();
+    auto* model = app_->filterModel();
+    if (!target.isValid() || model == nullptr || model->filterUuid() != target.filterUuid ||
+        !isEnabled()) {
+        complete(false);
+        return;
+    }
+
+    setEnabled(false);
+    model->canActivateEffect(
+        this, effectId,
+        [this, owner = QPointer<QWidget>(owner), target, complete = std::move(complete)](
+            bool allowed, const nlohmann::json& disablePatch) {
+            setEnabled(true);
+            auto* currentModel = app_->filterModel();
+            if (owner == nullptr || !isActiveSettingTarget(target) || currentModel == nullptr ||
+                currentModel->filterUuid() != target.filterUuid) {
+                return;
+            }
+            if (!allowed && !disablePatch.empty()) {
+                allowed = resolveEffectConflicts(disablePatch);
+            }
+            if (owner != nullptr && isActiveSettingTarget(target)) {
+                complete(allowed);
+            }
+        });
+}
+
 bool SettingController::resolveEffectConflicts(const nlohmann::json& disablePatch) {
     if (!disablePatch.is_array() || disablePatch.empty()) {
         LogError << "Missing conflict disable patch" << logEnd;

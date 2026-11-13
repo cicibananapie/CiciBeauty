@@ -196,22 +196,21 @@ bool CiciBeautyFilterInstance::queryParam(std::string_view method, const char8_t
     value = body["value"].get<int>();
     return true;
 }
-bool CiciBeautyFilterInstance::canActivateEffect(uint64_t id, nlohmann::json& disablePatch) const {
-    disablePatch = nlohmann::json::array();
-    const auto result = LumaClient::instance().call("instance.canActivateEffect",
-                                                    {{"instanceId", to_json(filterUuid_)}, {"effectId", id}},
-                                                    std::chrono::milliseconds(100));
-    if (result.status != cici::protocol::CallStatus::Success) {
-        LogWarn << "query effect conflict failed, status=" << static_cast<int>(result.status) << logEnd;
-        return false;
-    }
-    const auto& body = result.body;
-    if (!body.contains("allowed") || !body["allowed"].is_boolean() || !body.contains("disablePatch") ||
-        !body["disablePatch"].is_array() || body["allowed"].get<bool>() != body["disablePatch"].empty()) {
-        return false;
-    }
-    disablePatch = body["disablePatch"];
-    return body["allowed"].get<bool>();
+void CiciBeautyFilterInstance::canActivateEffect(
+    QObject* owner, uint64_t id, std::function<void(bool, const nlohmann::json&)> callback) const {
+    LumaClient::instance().callAsync(
+        owner, "instance.canActivateEffect", {{"instanceId", to_json(filterUuid_)}, {"effectId", id}},
+        [callback = std::move(callback)](cici::protocol::CallResult result) {
+            const auto& body = result.body;
+            if (!result.ok() || !body.contains("allowed") || !body["allowed"].is_boolean() ||
+                !body.contains("disablePatch") || !body["disablePatch"].is_array() ||
+                body["allowed"].get<bool>() != body["disablePatch"].empty()) {
+                LogWarn << "query effect conflict failed, status=" << static_cast<int>(result.status) << logEnd;
+                callback(false, nlohmann::json::array());
+                return;
+            }
+            callback(body["allowed"].get<bool>(), body["disablePatch"]);
+        });
 }
 void CiciBeautyFilterInstance::retryEffectPackageDownload(uint64_t id) {
     LumaClient::instance().postMsg(

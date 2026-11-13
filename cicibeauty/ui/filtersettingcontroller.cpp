@@ -238,14 +238,16 @@ void FilterSettingController::onEnableFilterStateChanged(int state) {
     }
 
     const bool enabling = state == Qt::Checked;
-    auto* activatingModel = app_->filterModel();
-    if (enabling
-        && selectedWidget_ != nullptr
-        && !tryActivateEffect(selectedWidget_->id())) {
-        if (app_->filterModel() == activatingModel) {
-            QSignalBlocker blocker(enableFilter_);
-            enableFilter_->setCheckState(Qt::Unchecked);
-        }
+    if (enabling && selectedWidget_ != nullptr) {
+        conflictResolver_->confirmEffectActivation(this, selectedWidget_->id(), [this](bool allowed) {
+            if (allowed) {
+                emit settingPatchRequested(JsonUtility::Patch::add(u8"/filters/enableFilter", true));
+            } else {
+                QSignalBlocker blocker(enableFilter_);
+                enableFilter_->setCheckState(Qt::Unchecked);
+            }
+            refreshEnableState();
+        });
     } else {
 	    emit settingPatchRequested(JsonUtility::Patch::add(u8"/filters/enableFilter", enabling));
     }
@@ -280,15 +282,24 @@ void FilterSettingController::refreshParamEnabledState() {
     favoriteDynamicParamUI_.setEnabled(enabled);
 }
 
-void FilterSettingController::selectWidget(EffectItemWidget* newWidget) {
+void FilterSettingController::selectWidget(EffectItemWidget* newWidget, std::u8string_view source) {
     assert(newWidget != nullptr);
     EffectItemWidget* selected = selectedWidget_ == newWidget ? nullptr : newWidget;
-    if (selected != nullptr
-        && enableFilter_->checkState() == Qt::Checked
-        && !tryActivateEffect(selected->id())) {
-        return;
+    auto complete = [this, newWidget, selected, source = std::u8string(source)](bool allowed) {
+        if (allowed) {
+            applySelection(selected);
+        }
+        reportFilterEffectSelect(app_, newWidget->id(), to_u8(newWidget->text()),
+                                 selectedWidget_ == newWidget, source);
+    };
+    if (selected != nullptr && enableFilter_->checkState() == Qt::Checked) {
+        conflictResolver_->confirmEffectActivation(newWidget, selected->id(), std::move(complete));
+    } else {
+        complete(true);
     }
+}
 
+void FilterSettingController::applySelection(EffectItemWidget* selected) {
     setSelectedWidget(selected);
     emit settingPatchRequested(JsonUtility::Patch::add(u8"/filters/selected", selected == nullptr ? 0 : selected->id()));
     refreshSelectedParamUi();
@@ -400,12 +411,7 @@ void FilterSettingController::applyEffectFavorite(EffectItemViews& item, bool fa
         widget->setSelected(item.allWidget_ == selectedWidget_);
         widget->setEnabled(enableFilter_->checkState() == Qt::Checked);
         QObject::connect(widget, &ImageTextWidget::clicked, this, [this, allWidget = item.allWidget_]() {
-            selectWidget(allWidget);
-            reportFilterEffectSelect(app_,
-                                     allWidget->id(),
-                                     to_u8(allWidget->text()),
-                                     selectedWidget_ == allWidget,
-                                     u8"favorites");
+            selectWidget(allWidget, u8"favorites");
         });
         QObject::connect(widget, &ImageTextWidget::liked, this, [this, allWidget = item.allWidget_](bool value) {
             reportFilterFavoriteToggle(app_,
@@ -469,11 +475,6 @@ void FilterSettingController::loadEffectList() {
         
         auto connection = QObject::connect(w, &ImageTextWidget::clicked, this, [this, w]() {
             selectWidget(w);
-            reportFilterEffectSelect(app_,
-                                     w->id(),
-                                     to_u8(w->text()),
-                                     selectedWidget_ == w,
-                                     u8"all");
         });
         assert(connection);
         QObject::connect(w, &ImageTextWidget::liked, this, [this, w](bool favorite) {
@@ -556,26 +557,6 @@ FilterSettingController::EffectItemViews* FilterSettingController::effectItem(ui
         }
     }
     return nullptr;
-}
-
-bool FilterSettingController::tryActivateEffect(uint64_t effectId) const {
-    assert(effectId != 0);
-    auto* model = app_->filterModel();
-    if (model == nullptr) {
-        return false;
-    }
-
-    nlohmann::json disablePatch;
-    if (model->canActivateEffect(effectId, disablePatch)) {
-        return true;
-    }
-
-    if (disablePatch.empty() || conflictResolver_ == nullptr) {
-        assert(false);
-        return false;
-    }
-
-    return conflictResolver_->resolveEffectConflicts(disablePatch);
 }
 
 bool FilterSettingController::isEffectCompatible(uint64_t effectId) const {

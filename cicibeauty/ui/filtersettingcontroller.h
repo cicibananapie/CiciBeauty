@@ -10,6 +10,7 @@
 #include <QString>
 #include <QWidget>
 #include <string>
+#include <string_view>
 
 #include "ciciwidget.h"
 #include "../obsinfo.h"
@@ -69,7 +70,8 @@ private:
     void loadEffectList();
     void refreshEnableState();
     void refreshParamEnabledState();
-    void selectWidget(EffectItemWidget* w);
+    void selectWidget(EffectItemWidget* w, std::u8string_view source = u8"all");
+    void applySelection(EffectItemWidget* w);
     void setSelectedWidget(EffectItemWidget* w);
     void restoreFromConfig(EffectItemWidget* w);
     void refreshSelectedParamUi();
@@ -78,7 +80,6 @@ private:
     void setEffectFavorite(uint64_t effectId, bool favorite);
     void applyEffectFavorite(EffectItemViews& item, bool favorite);
     EffectItemViews* effectItem(uint64_t effectId);
-    bool tryActivateEffect(uint64_t effectId) const;
     bool isEffectCompatible(uint64_t effectId) const;
     
 private:

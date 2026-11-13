@@ -31,7 +31,8 @@ public:
     std::u8string sourceUuid() const override;
     bool effectParamValue(const char8_t* path, int& value) const override;
     bool defaultEffectParamValue(const char8_t* path, int& value) const override;
-    bool canActivateEffect(uint64_t id, nlohmann::json& disablePatch) const override;
+    void canActivateEffect(QObject* owner, uint64_t id,
+                           std::function<void(bool, const nlohmann::json&)> callback) const override;
     void retryEffectPackageDownload(uint64_t id) override;
     void applySettingPatch(const nlohmann::json& patch) override;
     bool replaceSettingConfig(nlohmann::json& config) override;

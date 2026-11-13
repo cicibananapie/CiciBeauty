@@ -58,6 +58,7 @@ private:
     void loadEffectList();
     void bindSliderEditor(QSlider* slider, QLineEdit* editor, uint32_t cookie);
     void selectWidget(EffectItemWidget* w);
+    void applySelection(EffectItemWidget* w);
     void restoreFromConfig(EffectItemWidget* w);
     void hideParamUI();
     void showParamUI(uint32_t effectId);
@@ -110,6 +111,7 @@ private:    //IFilterModelChangeObserver
 private:
     void onItemClicked(EffectItemWidget* w);
     void selectWidget(EffectItemWidget* w);
+    void applySelection(EffectItemWidget* w);
     void restoreFromConfig(EffectItemWidget* w);
     void hideSlider();
     void showSlider();

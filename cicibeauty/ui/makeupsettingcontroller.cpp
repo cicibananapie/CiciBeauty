@@ -95,29 +95,6 @@ uint32_t resolvedEffectParamValue(GlobalModel* app, const std::u8string& path) {
     return kEmergencyUiValue;
 }
 
-bool tryActivateEffect(GlobalModel* app,
-                       IEffectConflictResolver* conflictResolver,
-                       uint64_t effectId) {
-    assert(app != nullptr);
-    assert(conflictResolver != nullptr);
-    assert(effectId != 0);
-
-    auto* model = app->filterModel();
-    if (model == nullptr) {
-        return false;
-    }
-
-    nlohmann::json disablePatch;
-    if (model->canActivateEffect(effectId, disablePatch)) {
-        return true;
-    }
-    if (disablePatch.empty()) {
-        assert(false);
-        return false;
-    }
-    return conflictResolver->resolveEffectConflicts(disablePatch);
-}
-
 }
 
 StylizedMakeupController::StylizedMakeupController(
@@ -206,13 +183,6 @@ void StylizedMakeupController::loadEffectList() {
         
         auto connection = QObject::connect(w, &ImageTextWidget::clicked, this, [this, w]() {
             onItemClicked(w);
-            reportMakeupEffectSelect(app_,
-                                     u8"stylized",
-                                     std::nullopt,
-                                     {},
-                                     w->id(),
-                                     to_u8(w->text()),
-                                     selectedWidget_ == w);
         });
         assert(connection);
         if (auto* status = w->packageStatus(); status != nullptr) {
@@ -299,9 +269,21 @@ void StylizedMakeupController::bindSliderEditor(QSlider* slider, QLineEdit* edit
 void StylizedMakeupController::selectWidget(EffectItemWidget* newWidget) {
 	assert(newWidget != nullptr);
     auto* target = selectedWidget_ == newWidget ? nullptr : newWidget;
-	if (target != nullptr && !tryActivateEffect(app_, conflictResolver_, target->id())) {
-        return;
+    auto complete = [this, newWidget, target](bool allowed) {
+        if (allowed) {
+            applySelection(target);
+        }
+        reportMakeupEffectSelect(app_, u8"stylized", std::nullopt, {}, newWidget->id(),
+                                 to_u8(newWidget->text()), selectedWidget_ == newWidget);
+    };
+    if (target != nullptr) {
+        conflictResolver_->confirmEffectActivation(newWidget, target->id(), std::move(complete));
+    } else {
+        complete(true);
     }
+}
+
+void StylizedMakeupController::applySelection(EffectItemWidget* target) {
 	if (selectedWidget_ != nullptr) {
 		selectedWidget_->setSelected(false);
     }
@@ -558,9 +540,21 @@ void MakeupCategoryWidget::onItemClicked(EffectItemWidget* newWidget) {
 void MakeupCategoryWidget::selectWidget(EffectItemWidget* newWidget) {
 	assert(newWidget != nullptr);
     auto* target = selectedWidget_ == newWidget ? nullptr : newWidget;
-	if (target != nullptr && !tryActivateEffect(app_, conflictResolver_, target->id())) {
-        return;
+    auto complete = [this, newWidget, target](bool allowed) {
+        if (allowed) {
+            applySelection(target);
+        }
+        reportMakeupEffectSelect(app_, u8"customized", id(), to_u8(categoryNameLabel_->text()),
+                                 newWidget->id(), to_u8(newWidget->text()), selectedWidget_ == newWidget);
+    };
+    if (target != nullptr) {
+        conflictResolver_->confirmEffectActivation(newWidget, target->id(), std::move(complete));
+    } else {
+        complete(true);
     }
+}
+
+void MakeupCategoryWidget::applySelection(EffectItemWidget* target) {
 	if (selectedWidget_ != nullptr) {
 		selectedWidget_->setSelected(false);
 	}
@@ -667,13 +661,6 @@ void MakeupCategoryWidget::addWidgets(const nlohmann::json& j) {
         gridMoreLayout_->addWidget(w);
         auto connection = QObject::connect(w, &ImageTextWidget::clicked, this, [this, w]() {
             onItemClicked(w);
-            reportMakeupEffectSelect(app_,
-                                     u8"customized",
-                                     this->id(),
-                                     to_u8(categoryNameLabel_->text()),
-                                     w->id(),
-                                     to_u8(w->text()),
-                                     selectedWidget_ == w);
         });
         assert(connection);
         if (auto* status = w->packageStatus(); status != nullptr) {

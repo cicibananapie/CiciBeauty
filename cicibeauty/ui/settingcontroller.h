@@ -62,7 +62,8 @@ public:
                                    nlohmann::json config,
                                    const nlohmann::json& favorites);
     void onCiciFilterChanged(const std::u8string& sourceUuid);
-    bool resolveEffectConflicts(const nlohmann::json& disablePatch) override;
+    void confirmEffectActivation(QWidget* owner, uint64_t effectId,
+                                 std::function<void(bool)> complete) override;
     
 public:
     void reset() override;
@@ -96,6 +97,7 @@ private:
     void clearAccountWidgets();
     void replacePage(int row, QWidget* page);
     void syncPageFromConfig(int row, const nlohmann::json& config);
+    bool resolveEffectConflicts(const nlohmann::json& disablePatch);
     void syncSelectedFilterModel();
     void connectObsSignals();
     void disconnectObsSignals();
