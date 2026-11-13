@@ -74,6 +74,7 @@ private:
     QList<EffectItemWidget*> widgets_;
     GlobalModel *app_ = nullptr;
     IEffectConflictResolver *conflictResolver_ = nullptr;
+    uint64_t paramQueryId_ = 0;
     bool loadingConfig_ = false;
 };
 
@@ -126,6 +127,7 @@ private:
     QList<EffectItemWidget*> widgets_;
     GlobalModel *app_ = nullptr;
     IEffectConflictResolver *conflictResolver_ = nullptr;
+    uint64_t paramQueryId_ = 0;
     bool loadingConfig_ = false;
 };
 

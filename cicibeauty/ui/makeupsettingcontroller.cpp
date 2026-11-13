@@ -74,27 +74,6 @@ std::u8string customizedMakeupStrengthPath(uint32_t categoryId, uint64_t effectI
          + u8"/effects/" + idPathToken(effectId) + u8"/strength";
 }
 
-bool tryResolveEffectParamValue(GlobalModel* app, const std::u8string& path, uint32_t& result) {
-    int value = 0;
-    auto* model = app->filterModel();
-    if (model->effectParamValue(path.c_str(), value) && value >= 0) {
-        result = static_cast<uint32_t>(value);
-        return true;
-    }
-
-    return false;
-}
-
-uint32_t resolvedEffectParamValue(GlobalModel* app, const std::u8string& path) {
-    uint32_t result = 0;
-    if (tryResolveEffectParamValue(app, path, result)) {
-        return result;
-    }
-
-    assert(false);
-    return kEmergencyUiValue;
-}
-
 }
 
 StylizedMakeupController::StylizedMakeupController(
@@ -146,6 +125,7 @@ void StylizedMakeupController::onHVModeChanged(ObsInfo::HVMode mode) {
 }
 
 void StylizedMakeupController::onFilterModelChanged(FilterModel* oldModel, FilterModel* newModel) {
+    ++paramQueryId_;
     if (oldModel != nullptr) {
         oldModel->obsInfo()->unregisterObserver(this);
     }
@@ -333,48 +313,46 @@ void StylizedMakeupController::reset() {
 }
 
 void StylizedMakeupController::hideParamUI() {
+    ++paramQueryId_;
     paramUI_.effectId_ = 0;
     paramUI_.hide();
 }
 
 void StylizedMakeupController::showParamUI(uint32_t effectId) {
-    paramUI_.effectId_ = effectId;
-
-    QSignalBlocker blockers[DynamicParamUI::kParamUINumber] = {
-        QSignalBlocker(paramUI_.items_[0].slider_),
-        QSignalBlocker(paramUI_.items_[1].slider_),
-        QSignalBlocker(paramUI_.items_[2].slider_),
-        QSignalBlocker(paramUI_.items_[3].slider_),
-        QSignalBlocker(paramUI_.items_[4].slider_),
-        QSignalBlocker(paramUI_.items_[5].slider_),
-        QSignalBlocker(paramUI_.items_[6].slider_),
-        QSignalBlocker(paramUI_.items_[7].slider_),
-        QSignalBlocker(paramUI_.items_[8].slider_),
-        QSignalBlocker(paramUI_.items_[9].slider_),
-        QSignalBlocker(paramUI_.items_[10].slider_),
-    };
-    (void)blockers;
-
-    uint32_t visibleCount = 0;
-    for (auto idx = 0u; idx < DynamicParamUI::kParamUINumber; idx++) {
-        const auto* key = stylizedMakeupParamKey(idx);
-        uint32_t value = 0;
-        if (!tryResolveEffectParamValue(app_, stylizedMakeupParamPath(effectId, key), value)) {
-            continue;
-        }
-
-        paramUI_.setParam(visibleCount,
-                          to_u8(makeupType2String(idx + 1)),
-                          std::u8string(key),
-                          0.0f,
-                          100.0f,
-                          0.0f,
-                          0);
-        paramUI_.items_[visibleCount].setIntValue(value);
-        visibleCount++;
+    auto* model = app_->filterModel();
+    if (model == nullptr) {
+        return;
     }
-    paramUI_.show(visibleCount);
-    refreshParamEnabledState();
+    std::vector<std::u8string> paths;
+    for (auto idx = 0u; idx < DynamicParamUI::kParamUINumber; idx++) {
+        paths.push_back(stylizedMakeupParamPath(effectId, stylizedMakeupParamKey(idx)));
+    }
+    model->queryEffectParamValues(
+        this, paths, [this, queryId = paramQueryId_, effectId, paths](const nlohmann::json& values) {
+            if (queryId != paramQueryId_) {
+                return;
+            }
+            paramUI_.effectId_ = effectId;
+            uint32_t visibleCount = 0;
+            for (auto idx = 0u; idx < paths.size(); idx++) {
+                const auto value = values.find(to_char(paths[idx]));
+                if (value == values.end() || value->get<int>() < 0) {
+                    continue;
+                }
+                QSignalBlocker blocker(paramUI_.items_[visibleCount].slider_);
+                paramUI_.setParam(visibleCount,
+                                  to_u8(makeupType2String(idx + 1)),
+                                  std::u8string(stylizedMakeupParamKey(idx)),
+                                  0.0f,
+                                  100.0f,
+                                  0.0f,
+                                  0);
+                paramUI_.items_[visibleCount].setIntValue(value->get<int>());
+                visibleCount++;
+            }
+            paramUI_.show(visibleCount);
+            refreshParamEnabledState();
+        });
 }
 
 void StylizedMakeupController::refreshSelectedParamUi() {
@@ -484,6 +462,7 @@ void MakeupCategoryWidget::onHVModeChanged(ObsInfo::HVMode mode) {
 }
 
 void MakeupCategoryWidget::onFilterModelChanged(FilterModel* oldModel, FilterModel* newModel) {
+    ++paramQueryId_;
     if (oldModel != nullptr) {
         oldModel->obsInfo()->unregisterObserver(this);
     }
@@ -597,6 +576,7 @@ void MakeupCategoryWidget::restoreFromConfig(EffectItemWidget* newWidget) {
 }
 
 void MakeupCategoryWidget::hideSlider() {
+    ++paramQueryId_;
     QSignalBlocker blocker(dynamicParamUI_.slider_);
     dynamicParamUI_.setIntValue(kEmergencyUiValue);
     dynamicParamUI_.hide();
@@ -604,15 +584,28 @@ void MakeupCategoryWidget::hideSlider() {
 
 void MakeupCategoryWidget::showSlider() {
     assert(selectedWidget_ != nullptr);
-    std::u8string labelU8 = to_u8(tr("Strength"));
-    QSignalBlocker blocker(dynamicParamUI_.slider_);
-    dynamicParamUI_.setParam(labelU8, u8"Intensity", 0.0f, 100.0f, 0.0f, 0);
-    dynamicParamUI_.setIntValue(resolvedEffectParamValue(app_,
-                                                         customizedMakeupStrengthPath(id(),
-                                                                                     selectedWidget_->id())));
-    
-    dynamicParamUI_.show();
-    refreshParamEnabledState();
+    hideSlider();
+    auto* model = app_->filterModel();
+    if (model == nullptr) {
+        return;
+    }
+    const auto path = customizedMakeupStrengthPath(id(), selectedWidget_->id());
+    model->queryEffectParamValues(
+        this, {path}, [this, queryId = paramQueryId_, path](const nlohmann::json& values) {
+            if (queryId != paramQueryId_) {
+                return;
+            }
+            const auto value = values.find(to_char(path));
+            if (value == values.end() || value->get<int>() < 0) {
+                return;
+            }
+            const auto label = to_u8(tr("Strength"));
+            QSignalBlocker blocker(dynamicParamUI_.slider_);
+            dynamicParamUI_.setParam(label, u8"Intensity", 0.0f, 100.0f, 0.0f, 0);
+            dynamicParamUI_.setIntValue(value->get<int>());
+            dynamicParamUI_.show();
+            refreshParamEnabledState();
+        });
 }
 
 void MakeupCategoryWidget::refreshSelectedParamUi() {
