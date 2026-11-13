@@ -4,6 +4,7 @@
 
 #include "cicibeautyfilterinstance.h"
 
+#include <algorithm>
 #include <chrono>
 #include <obs.h>
 #include <string>
@@ -176,6 +177,28 @@ bool CiciBeautyFilterInstance::effectParamValue(const char8_t* path, int& value)
 }
 bool CiciBeautyFilterInstance::defaultEffectParamValue(const char8_t* path, int& value) const {
     return queryParam("instance.getDefaultParamValue", path, value);
+}
+void CiciBeautyFilterInstance::queryEffectParamValues(
+    QObject* owner, const std::vector<std::u8string>& paths,
+    std::function<void(const nlohmann::json&)> callback) const {
+    auto queryPaths = nlohmann::json::array();
+    for (const auto& path : paths) {
+        queryPaths.push_back(to_json(path));
+    }
+    LumaClient::instance().callAsync(
+        owner, "instance.queryParamValues", {{"instanceId", to_json(filterUuid_)}, {"paths", std::move(queryPaths)}},
+        [callback = std::move(callback)](cici::protocol::CallResult result) {
+            const auto values = result.body.find("values");
+            if (!result.ok() || values == result.body.end() || !values->is_object() ||
+                !std::all_of(values->begin(), values->end(), [](const auto& value) {
+                    return value.is_number_integer();
+                })) {
+                LogWarn << "query effect parameters failed, status=" << static_cast<int>(result.status) << logEnd;
+                callback(nlohmann::json::object());
+                return;
+            }
+            callback(*values);
+        });
 }
 bool CiciBeautyFilterInstance::queryParam(std::string_view method, const char8_t* path, int& value) const {
     if (!path || sourceUuid().empty()) {

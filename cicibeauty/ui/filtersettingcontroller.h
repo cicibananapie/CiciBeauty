@@ -95,5 +95,6 @@ private:
     GlobalModel *app_ = nullptr;
     IEffectConflictResolver *conflictResolver_ = nullptr;
     int favoriteCount_ = 0;
+    uint64_t paramQueryId_ = 0;
     bool loadingConfig_ = false;
 };

@@ -31,6 +31,8 @@ public:
     std::u8string sourceUuid() const override;
     bool effectParamValue(const char8_t* path, int& value) const override;
     bool defaultEffectParamValue(const char8_t* path, int& value) const override;
+    void queryEffectParamValues(QObject* owner, const std::vector<std::u8string>& paths,
+                                std::function<void(const nlohmann::json&)> callback) const override;
     void canActivateEffect(QObject* owner, uint64_t id,
                            std::function<void(bool, const nlohmann::json&)> callback) const override;
     void retryEffectPackageDownload(uint64_t id) override;

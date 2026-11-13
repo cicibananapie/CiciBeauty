@@ -31,7 +31,6 @@
 #include "../statistics/settingspageanalytics.h"
 
 namespace {
-constexpr uint32_t kEmergencyUiValue = 50;
 constexpr std::u8string_view kFavoritePage = u8"filter";
 constexpr int kFavoritesTab = 0;
 constexpr int kAllTab = 1;
@@ -45,18 +44,6 @@ std::u8string idPathToken(uint64_t id) {
 
 std::u8string filterStrengthPath(uint64_t effectId) {
     return std::u8string(u8"/filters/effects/") + idPathToken(effectId) + u8"/strength";
-}
-
-uint32_t resolvedFilterStrength(GlobalModel* app, uint64_t effectId) {
-    int value = 0;
-    auto* model = app != nullptr ? app->filterModel() : nullptr;
-    const auto path = filterStrengthPath(effectId);
-    if (model != nullptr && model->effectParamValue(path.c_str(), value) && value >= 0) {
-        return static_cast<uint32_t>(value);
-    }
-
-    assert(false);
-    return kEmergencyUiValue;
 }
 
 }
@@ -177,6 +164,7 @@ void FilterSettingController::onHVModeChanged(ObsInfo::HVMode mode) {
 }
 
 void FilterSettingController::onFilterModelChanged(FilterModel* oldModel, FilterModel* newModel) {
+    ++paramQueryId_;
     if (oldModel != nullptr) {
         oldModel->obsInfo()->unregisterObserver(this);
     }
@@ -356,24 +344,43 @@ void FilterSettingController::refreshSelectedParamUi() {
 }
 
 void FilterSettingController::hideSlider() {
+    ++paramQueryId_;
     dynamicParamUI_.hide();
     favoriteDynamicParamUI_.hide();
 }
 
 void FilterSettingController::showSlider() {
     assert(selectedWidget_ != nullptr);
-    std::u8string labelU8 = to_u8(tr("Strength"));
-    const auto strength = resolvedFilterStrength(app_, selectedWidget_->id());
-    QSignalBlocker allBlocker(dynamicParamUI_.slider_);
-    QSignalBlocker favoriteBlocker(favoriteDynamicParamUI_.slider_);
-    dynamicParamUI_.setParam(labelU8, u8"Intensity", static_cast<int>(strength), 100, 0, 0);
-    favoriteDynamicParamUI_.setParam(labelU8, u8"Intensity", static_cast<int>(strength), 100, 0, 0);
-    dynamicParamUI_.show();
-    auto* item = effectItem(selectedWidget_->id());
-    assert(item != nullptr);
-    if (item->favoriteWidget_ != nullptr) {
-        favoriteDynamicParamUI_.show();
+    hideSlider();
+    auto* model = app_->filterModel();
+    if (model == nullptr) {
+        return;
     }
+    const auto effectId = selectedWidget_->id();
+    const auto path = filterStrengthPath(effectId);
+    model->queryEffectParamValues(
+        this, {path}, [this, queryId = paramQueryId_, effectId, path](const nlohmann::json& values) {
+            if (queryId != paramQueryId_) {
+                return;
+            }
+            const auto value = values.find(to_char(path));
+            if (value == values.end() || value->get<int>() < 0) {
+                return;
+            }
+            const auto strength = value->get<int>();
+            const auto label = to_u8(tr("Strength"));
+            QSignalBlocker allBlocker(dynamicParamUI_.slider_);
+            QSignalBlocker favoriteBlocker(favoriteDynamicParamUI_.slider_);
+            dynamicParamUI_.setParam(label, u8"Intensity", strength, 100, 0, 0);
+            favoriteDynamicParamUI_.setParam(label, u8"Intensity", strength, 100, 0, 0);
+            dynamicParamUI_.show();
+            auto* item = effectItem(effectId);
+            assert(item != nullptr);
+            if (item->favoriteWidget_ != nullptr) {
+                favoriteDynamicParamUI_.show();
+            }
+            refreshParamEnabledState();
+        });
 }
 
 void FilterSettingController::setEffectFavorite(uint64_t effectId, bool favorite) {
