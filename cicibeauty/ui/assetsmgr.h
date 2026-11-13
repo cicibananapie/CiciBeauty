@@ -45,6 +45,7 @@ private:
 private:
     EffectAsset package_;
     EffectPackageState state_ = EffectPackageState::Unknown;
+    bool querying_ = false;
 };
 
 Q_DECLARE_METATYPE(RemoteImageState)

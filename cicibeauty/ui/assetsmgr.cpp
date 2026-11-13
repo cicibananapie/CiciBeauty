@@ -2,8 +2,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 // See LICENSES/GPL-2.0-or-later.txt for the full license text.
 
-#include <chrono>
-
 #include <QPixmap>
 
 #include "cicibase.h"
@@ -125,19 +123,21 @@ EffectPackageStatus* AssetsMgr::effectPackageStatus(const EffectAsset& package) 
         status->setState(EffectPackageState::Failed);
         return status;
     }
-    if (status->state() == EffectPackageState::Unknown) {
-        const auto result = LumaClient::instance().call("assets.getEffectPackageStatus",
-                                                        {{"package", cici::protocol::assetJson(package)}},
-                                                        std::chrono::milliseconds(100));
-        EffectPackageState state;
-        if (result.ok() && result.body.contains("state") &&
-            cici::protocol::readAssetState(result.body["state"], state, EffectPackageState::Failed)) {
-            status->setState(state);
-        } else {
-            LogWarn << "AssetsMgr package status query failed, hash:" << package.sha256_
-                    << " IPC status:" << static_cast<int>(result.status) << logEnd;
-            status->setState(EffectPackageState::Unknown);
-        }
+    if (status->state() == EffectPackageState::Unknown && !status->querying_) {
+        status->querying_ = true;
+        LumaClient::instance().callAsync(
+            status, "assets.queryEffectPackageStatus", {{"package", cici::protocol::assetJson(package)}},
+            [status](cici::protocol::CallResult result) {
+                status->querying_ = false;
+                EffectPackageState state;
+                if (result.ok() && result.body.contains("state") &&
+                    cici::protocol::readAssetState(result.body["state"], state, EffectPackageState::Failed)) {
+                    status->setState(state);
+                } else {
+                    LogWarn << "AssetsMgr package status query failed, hash:" << status->cacheKey()
+                            << " IPC status:" << static_cast<int>(result.status) << logEnd;
+                }
+            });
     }
     return status;
 }
@@ -179,7 +179,7 @@ void AssetsMgr::onMessage(const cici::protocol::JsonMessage& message) {
             return;
         }
         const auto it = effectPackages_.find(to_u8(body["sha256"].get<std::string>()));
-        if (it != effectPackages_.end() && it->second->state() != EffectPackageState::Unknown) {
+        if (it != effectPackages_.end()) {
             it->second->setState(state);
         }
     }
