@@ -45,17 +45,6 @@ std::u8string beautyParamPath(uint32_t solutionIndex, const char* key) {
     return std::u8string(u8"/beauty/solutions/") + to_u8(solutionIndex) + u8"/" + to_u8(key);
 }
 
-uint32_t resolvedEffectParamValue(GlobalModel* app, const std::u8string& path) {
-    int value = 0;
-	auto *model = app->filterModel();
-	if (model->effectParamValue(path.c_str(), value) && value >= 0) {
-		return value;
-	}
-
-    assert(false);
-	return value;
-}
-
 nlohmann::json defaultBeautySolution(GlobalModel* app) {
     const nlohmann::json config = app->settingConfig()->defaultConfig();
     const auto beautyIt = config.find("beauty");
@@ -222,10 +211,13 @@ void SolutionController::json2Me(const nlohmann::json& j) {
 
 void SolutionController::json2Me(const nlohmann::json& j, uint32_t solutionIndex) {
     loadingConfig_ = true;
-    auto readValue = [this, solutionIndex](EffectDetailInfo& info, const char* key) {
+    setEnabled(false);
+    std::vector<EffectDetailInfo*> params;
+    std::vector<std::u8string> paths;
+    auto readValue = [&params, &paths, solutionIndex](EffectDetailInfo& info, const char* key) {
         info.jsonKey_ = key;
-        info.value_ = resolvedEffectParamValue(app_, beautyParamPath(solutionIndex, key));
-        syncEffectDetailUi(info);
+        params.push_back(&info);
+        paths.push_back(beautyParamPath(solutionIndex, key));
     };
 
     setId(j.value("id", 1));
@@ -327,6 +319,28 @@ void SolutionController::json2Me(const nlohmann::json& j, uint32_t solutionIndex
     refreshEnableSkinState();
     refreshEnableFaceShapingState();
     loadingConfig_ = false;
+
+    auto* model = app_->filterModel();
+    if (model == nullptr) {
+        return;
+    }
+    model->queryEffectParamValues(
+        this, paths, [this, instanceId = model->filterUuid(), params, paths](const nlohmann::json& values) {
+            const auto* currentModel = app_->filterModel();
+            if (currentModel == nullptr || currentModel->filterUuid() != instanceId) {
+                return;
+            }
+            for (size_t i = 0; i < paths.size(); ++i) {
+                const auto value = values.find(to_char(paths[i]));
+                if (value == values.end() || value->get<int>() < 0) {
+                    LogWarn << "Beauty parameter unavailable, path=" << paths[i] << logEnd;
+                    return;
+                }
+                params[i]->value_ = value->get<int>();
+                syncEffectDetailUi(*params[i]);
+            }
+            setEnabled(true);
+        });
 }
 
 void SolutionController::bindSliderEditor(QSlider* slider, QLineEdit* editor, EffectDetailInfo* pData) {
