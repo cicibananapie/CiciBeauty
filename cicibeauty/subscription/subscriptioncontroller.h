@@ -39,7 +39,5 @@ signals:
     void aboutToExpire(SubscriptionType curType, uint32_t howManyDaysBeforeExpire);
 
 private:
-  void syncStatus();
-
   SubscriptionStatus status_;
 };
