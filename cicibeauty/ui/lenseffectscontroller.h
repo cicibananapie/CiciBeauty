@@ -104,6 +104,7 @@ private:
     std::vector<EffectItemWidget*> widgets_;
     std::map<uint32_t, MovementData> movements_;
     GlobalModel *app_ = nullptr;
+    uint64_t paramQueryId_ = 0;
     bool loadingConfig_ = false;
 };
 

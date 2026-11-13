@@ -52,20 +52,6 @@ std::u8string cameraMovementParamPath(uint32_t effectId, std::u8string_view key)
         + std::u8string(key);
 }
 
-uint32_t resolvedCameraMovementUiValue(GlobalModel* app,
-                                       uint32_t effectId,
-                                       std::u8string_view key,
-                                       uint32_t fallback) {
-    int value = 0;
-    auto* model = app != nullptr ? app->filterModel() : nullptr;
-    const auto path = cameraMovementParamPath(effectId, key);
-    if (model != nullptr && model->effectParamValue(path.c_str(), value) && value >= 0) {
-        return static_cast<uint32_t>(value);
-    }
-
-    return fallback;
-}
-
 }
     
 BasicLensEffectsController::BasicLensEffectsController(GlobalModel *app, QWidget *parent /* = nullptr*/)
@@ -335,6 +321,7 @@ void CameraMovementController::onHVModeChanged(ObsInfo::HVMode mode) {
 }
 
 void CameraMovementController::onFilterModelChanged(FilterModel* oldModel, FilterModel* newModel) {
+    ++paramQueryId_;
     if (oldModel != nullptr) {
         oldModel->obsInfo()->unregisterObserver(this);
     }
@@ -501,34 +488,49 @@ void CameraMovementController::reset() {
 }
 
 void CameraMovementController::hideSlider() {
+    ++paramQueryId_;
 	dynamicUI_.effectId_ = 0;
 	dynamicUI_.hide();
 }
 
 void CameraMovementController::showSlider() {
-	assert(selectedWidget_ != nullptr);
-	auto id = selectedWidget_->id();
-	dynamicUI_.effectId_ = id;
-    static const char8_t* paramNames[] = {u8"Speed", u8"Intensity"};
-    const QString uiNames[] = {tr("Speed"), tr("Intensity")};
-    QSignalBlocker speedBlocker(dynamicUI_.items_[0].slider_);
-    QSignalBlocker amplitudeBlocker(dynamicUI_.items_[1].slider_);
-    for (auto i = 0; i < sizeof(paramNames)/sizeof(paramNames[0]); i++) {
-        dynamicUI_.setParam(i, to_u8(uiNames[i]), std::u8string(paramNames[i]), 0.0f, 100.0f, 0.0f, 0);
+    assert(selectedWidget_ != nullptr);
+    hideSlider();
+    auto* model = app_->filterModel();
+    if (model == nullptr) {
+        return;
     }
-
-    auto& movement = movements_[id];
-    movement.speed = resolvedCameraMovementUiValue(app_, id, u8"speed", movement.speed);
-    movement.amplitude = resolvedCameraMovementUiValue(app_, id,
-                                                       u8"amplitude",
-                                                       movement.amplitude);
-    const auto speed = movement.speed;
-    const auto amplitude = movement.amplitude;
-    dynamicUI_.items_[0].setIntValue(speed);
-    dynamicUI_.items_[1].setIntValue(amplitude);
-    
-	dynamicUI_.show(sizeof(paramNames)/sizeof(paramNames[0]));
-    refreshParamEnabledState();
+    const auto id = selectedWidget_->id();
+    const auto speedPath = cameraMovementParamPath(id, u8"speed");
+    const auto amplitudePath = cameraMovementParamPath(id, u8"amplitude");
+    model->queryEffectParamValues(
+        this, {speedPath, amplitudePath},
+        [this, queryId = paramQueryId_, id, speedPath, amplitudePath](const nlohmann::json& values) {
+            if (queryId != paramQueryId_) {
+                return;
+            }
+            auto& movement = movements_[id];
+            const auto speed = values.find(to_char(speedPath));
+            if (speed != values.end() && speed->get<int>() >= 0) {
+                movement.speed = speed->get<int>();
+            }
+            const auto amplitude = values.find(to_char(amplitudePath));
+            if (amplitude != values.end() && amplitude->get<int>() >= 0) {
+                movement.amplitude = amplitude->get<int>();
+            }
+            dynamicUI_.effectId_ = id;
+            static const char8_t* paramNames[] = {u8"Speed", u8"Intensity"};
+            const QString uiNames[] = {tr("Speed"), tr("Intensity")};
+            QSignalBlocker speedBlocker(dynamicUI_.items_[0].slider_);
+            QSignalBlocker amplitudeBlocker(dynamicUI_.items_[1].slider_);
+            for (auto i = 0; i < sizeof(paramNames)/sizeof(paramNames[0]); i++) {
+                dynamicUI_.setParam(i, to_u8(uiNames[i]), std::u8string(paramNames[i]), 0.0f, 100.0f, 0.0f, 0);
+            }
+            dynamicUI_.items_[0].setIntValue(movement.speed);
+            dynamicUI_.items_[1].setIntValue(movement.amplitude);
+            dynamicUI_.show(sizeof(paramNames)/sizeof(paramNames[0]));
+            refreshParamEnabledState();
+        });
 }
 
 void CameraMovementController::refreshParamEnabledState() {
