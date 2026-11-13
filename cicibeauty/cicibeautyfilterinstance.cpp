@@ -5,7 +5,6 @@
 #include "cicibeautyfilterinstance.h"
 
 #include <algorithm>
-#include <chrono>
 #include <obs.h>
 #include <string>
 #include <string_view>
@@ -172,21 +171,16 @@ std::u8string CiciBeautyFilterInstance::consumePendingRemoveTrigger(const std::u
     return trigger.empty() ? defaultTrigger : trigger;
 }
 
-bool CiciBeautyFilterInstance::effectParamValue(const char8_t* path, int& value) const {
-    return queryParam("instance.getParamValue", path, value);
-}
-bool CiciBeautyFilterInstance::defaultEffectParamValue(const char8_t* path, int& value) const {
-    return queryParam("instance.getDefaultParamValue", path, value);
-}
 void CiciBeautyFilterInstance::queryEffectParamValues(
     QObject* owner, const std::vector<std::u8string>& paths,
-    std::function<void(const nlohmann::json&)> callback) const {
+    std::function<void(const nlohmann::json&)> callback, bool defaultOnly) const {
     auto queryPaths = nlohmann::json::array();
     for (const auto& path : paths) {
         queryPaths.push_back(to_json(path));
     }
     LumaClient::instance().callAsync(
-        owner, "instance.queryParamValues", {{"instanceId", to_json(filterUuid_)}, {"paths", std::move(queryPaths)}},
+        owner, "instance.queryParamValues",
+        {{"instanceId", to_json(filterUuid_)}, {"paths", std::move(queryPaths)}, {"defaultOnly", defaultOnly}},
         [callback = std::move(callback)](cici::protocol::CallResult result) {
             const auto values = result.body.find("values");
             if (!result.ok() || values == result.body.end() || !values->is_object() ||
@@ -199,25 +193,6 @@ void CiciBeautyFilterInstance::queryEffectParamValues(
             }
             callback(*values);
         });
-}
-bool CiciBeautyFilterInstance::queryParam(std::string_view method, const char8_t* path, int& value) const {
-    if (!path || sourceUuid().empty()) {
-        return false;
-    }
-    const auto result = LumaClient::instance().call(
-        method, {{"instanceId", to_json(filterUuid_)}, {"path", to_char(path)}}, std::chrono::milliseconds(100));
-    if (result.status != cici::protocol::CallStatus::Success) {
-        LogWarn << "query effect parameter failed, method=" << method << ", status=" << static_cast<int>(result.status)
-                << logEnd;
-        return false;
-    }
-    const auto& body = result.body;
-    if (!body.contains("found") || !body["found"].is_boolean() || !body["found"].get<bool>() ||
-        !body.contains("value") || !body["value"].is_number_integer()) {
-        return false;
-    }
-    value = body["value"].get<int>();
-    return true;
 }
 void CiciBeautyFilterInstance::canActivateEffect(
     QObject* owner, uint64_t id, std::function<void(bool, const nlohmann::json&)> callback) const {

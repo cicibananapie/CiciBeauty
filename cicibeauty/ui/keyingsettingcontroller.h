@@ -61,7 +61,7 @@ private:
     void bindSliderEditor(QSlider* slider, QLineEdit* editor, EffectDetailInfo2* pData);
     void initializeParams();
     std::u8string paramPath(const EffectDetailInfo2& param) const;
-    uint32_t resolvedParamValue(const EffectDetailInfo2& param, bool defaultOnly) const;
+    void loadParams(bool defaultOnly, const nlohmann::json& config, std::function<void()> complete = {});
     void resetFeatureFlags();
     void applyFeatureFlags();
     void syncFeatureFlagUI();
@@ -110,6 +110,7 @@ private:
     bool active_ = false;
     GlobalModel *app_ = nullptr;
     const char* templateName_ = nullptr;
+    uint64_t paramQueryId_ = 0;
     bool loadingConfig_ = false;
 };
 

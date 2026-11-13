@@ -27,11 +27,10 @@ public:
 	virtual const std::u8string& filterUuid() const = 0;
 	virtual ObsInfo *obsInfo() const = 0;
 	virtual std::u8string sourceUuid() const = 0;
-	virtual bool effectParamValue(const char8_t *jsonPath, int &value) const = 0;
-	virtual bool defaultEffectParamValue(const char8_t *jsonPath, int &value) const = 0;
     // Returns resolved path/value pairs; missing parameters are omitted and request failure returns an empty object.
     virtual void queryEffectParamValues(QObject* owner, const std::vector<std::u8string>& paths,
-                                        std::function<void(const nlohmann::json&)> callback) const = 0;
+                                        std::function<void(const nlohmann::json&)> callback,
+                                        bool defaultOnly = false) const = 0;
     // Reports request failure as false with an empty patch.
     virtual void canActivateEffect(QObject* owner, uint64_t effectId,
                                    std::function<void(bool, const nlohmann::json&)> callback) const = 0;

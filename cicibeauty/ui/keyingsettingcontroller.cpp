@@ -33,6 +33,7 @@
 #include "nokeyingzonewidget.h"
 #include "keyingsettingcontroller.h"
 #include "../modelapp.h"
+#include "log.h"
 #include "misc.h"
 #include "mediatype.h"
 #include "../qstringconv.h"
@@ -563,30 +564,46 @@ std::u8string KeyingTemplateController::paramPath(const EffectDetailInfo2& param
     return std::u8string(u8"/keying/greenKeying/") + to_u8(templateName_) + u8"/" + to_u8(param.jsonKey_);
 }
 
-uint32_t KeyingTemplateController::resolvedParamValue(const EffectDetailInfo2& param,
-                                                      bool defaultOnly) const {
-    assert(app_ != nullptr);
+void KeyingTemplateController::loadParams(bool defaultOnly, const nlohmann::json& config,
+                                          std::function<void()> complete) {
+    const auto queryId = ++paramQueryId_;
+    setEnabled(false);
     auto* model = app_->filterModel();
-    assert(model != nullptr);
-
-    int value = 0;
-    const auto path = paramPath(param);
-    const bool resolved = defaultOnly
-        ? model->defaultEffectParamValue(path.c_str(), value)
-        : model->effectParamValue(path.c_str(), value);
-    assert(resolved);
-    assert(value >= 0);
-    return resolved && value >= 0 ? static_cast<uint32_t>(value) : 0;
+    if (model == nullptr) {
+        return;
+    }
+    std::vector<std::u8string> paths;
+    for (const auto* param : params_) {
+        paths.push_back(paramPath(*param));
+    }
+    model->queryEffectParamValues(
+        this, paths,
+        [this, queryId, instanceId = model->filterUuid(), config, paths,
+         complete = std::move(complete)](const nlohmann::json& values) {
+            const auto* currentModel = app_->filterModel();
+            if (queryId != paramQueryId_ || currentModel == nullptr || currentModel->filterUuid() != instanceId) {
+                return;
+            }
+            for (size_t i = 0; i < paths.size(); ++i) {
+                const auto value = values.find(to_char(paths[i]));
+                if (value == values.end() || value->get<int>() < 0) {
+                    LogWarn << "Keying parameter unavailable, path=" << paths[i] << logEnd;
+                    return;
+                }
+                params_[i]->json2Me(config, value->get<int>());
+                params_[i]->syncValueToUI();
+            }
+            setEnabled(true);
+            if (complete) {
+                complete();
+            }
+        }, defaultOnly);
 }
 
 void KeyingTemplateController::reset() {
     loadingConfig_ = true;
-    for (auto* param : params_) {
-        param->setValue(resolvedParamValue(*param, true));
-        param->syncValueToUI();
-    }
-
     resetFeatureFlags();
+    loadParams(true, nlohmann::json::object());
     loadingConfig_ = false;
 }
 
@@ -596,17 +613,13 @@ void KeyingTemplateController::json2Me(const nlohmann::json& j) {
     const auto empty = nlohmann::json::object();
     const auto& source = j.is_object() ? j : empty;
 
-    for (auto *param : params_) {
-        param->json2Me(source, resolvedParamValue(*param, false));
-	    param->syncValueToUI();
-    }
-
     blendSmoothEnabled_ = source.value("blendSmoothEnabled", false);
     lightShadowEnabled_ = source.value("lightShadowEnabled", false);
     hairDetailEnabled_ = source.value("hairDetailEnabled", false);
     colorBleedEnabled_ = source.value("colorBleedEnabled", false);
     faceProtectEnabled_ = source.value("faceProtectEnabled", false);
     syncFeatureFlagUI();
+    loadParams(false, source);
     loadingConfig_ = false;
 }
 
@@ -655,22 +668,22 @@ void KeyingTemplateController::bindSliderEditor(QSlider* slider, QLineEdit* edit
 }
 
 void KeyingTemplateController::onResetParamBtnClicked() {
-    for (auto* param: params_) {
-        param->setValue(resolvedParamValue(*param, true));
-	    param->syncValueToUI();
-        if (!loadingConfig_) {
-            emit valueFieldChanged(QString::fromUtf8(param->jsonKey_), param->value_);
+    loadParams(true, nlohmann::json::object(), [this]() {
+        for (const auto* param : params_) {
+            if (!loadingConfig_) {
+                emit valueFieldChanged(QString::fromUtf8(param->jsonKey_), param->value_);
+            }
         }
-    }
 
-    resetFeatureFlags();
-    if (!loadingConfig_) {
-        emit toggleFieldChanged(QStringLiteral("blendSmoothEnabled"), false);
-        emit toggleFieldChanged(QStringLiteral("lightShadowEnabled"), false);
-        emit toggleFieldChanged(QStringLiteral("hairDetailEnabled"), false);
-        emit toggleFieldChanged(QStringLiteral("colorBleedEnabled"), false);
-        emit toggleFieldChanged(QStringLiteral("faceProtectEnabled"), false);
-    }
+        resetFeatureFlags();
+        if (!loadingConfig_) {
+            emit toggleFieldChanged(QStringLiteral("blendSmoothEnabled"), false);
+            emit toggleFieldChanged(QStringLiteral("lightShadowEnabled"), false);
+            emit toggleFieldChanged(QStringLiteral("hairDetailEnabled"), false);
+            emit toggleFieldChanged(QStringLiteral("colorBleedEnabled"), false);
+            emit toggleFieldChanged(QStringLiteral("faceProtectEnabled"), false);
+        }
+    });
 }
 
 void KeyingTemplateController::syncFeatureFlagUI() {

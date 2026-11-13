@@ -10,7 +10,6 @@
 #include <memory>
 #include <mutex>
 #include <string>
-#include <string_view>
 
 #include "modelapp.h"
 #include "obsinfo.h"
@@ -29,10 +28,9 @@ public:
     ObsInfo* obsInfo() const override;
     const std::u8string& filterUuid() const override;
     std::u8string sourceUuid() const override;
-    bool effectParamValue(const char8_t* path, int& value) const override;
-    bool defaultEffectParamValue(const char8_t* path, int& value) const override;
     void queryEffectParamValues(QObject* owner, const std::vector<std::u8string>& paths,
-                                std::function<void(const nlohmann::json&)> callback) const override;
+                                std::function<void(const nlohmann::json&)> callback,
+                                bool defaultOnly = false) const override;
     void canActivateEffect(QObject* owner, uint64_t id,
                            std::function<void(bool, const nlohmann::json&)> callback) const override;
     void retryEffectPackageDownload(uint64_t id) override;
@@ -41,7 +39,6 @@ public:
 
 private:
     friend class CiciBeautyApp;
-    bool queryParam(std::string_view method, const char8_t* path, int& value) const;
     void onHVModeChanged(ObsInfo::HVMode mode) override; // IObsEventCallback
     void onCanvasTransformChanged(const ObsInfo::CanvasTransform& transform) override;
 
