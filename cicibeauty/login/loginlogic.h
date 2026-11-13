@@ -47,7 +47,5 @@ signals:
   void loginFailed(LoginFailureReason reason, const std::u8string& errorMessage);
 
 private:
-  void refresh();
-
   LoginInfo info_;
 };

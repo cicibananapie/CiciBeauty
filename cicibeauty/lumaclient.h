@@ -41,6 +41,10 @@ public:
     cici::protocol::CallResult call(std::string_view method, const nlohmann::json& body,
                                     std::chrono::milliseconds timeout);
 
+    // Main-thread request and callback. Destroying owner cancels local delivery.
+    void callAsync(QObject* owner, std::string_view method, const nlohmann::json& body,
+                   std::function<void(cici::protocol::CallResult)> callback);
+
     // Main-thread listeners. connected also runs immediately if already connected.
     void addListener(void* owner, std::function<void(const cici::protocol::JsonMessage&)> message,
                      std::function<void()> closed, std::function<void()> connected = {});
@@ -65,6 +69,7 @@ private:
         std::function<void()> connected;
     };
     std::map<void*, Listener> listeners_;
+    std::map<uint64_t, std::function<void(cici::protocol::CallResult)>> asyncCalls_;
 
     std::unique_ptr<IPCServer> ipc_;
     std::unique_ptr<QTimer> connectionTimer_;

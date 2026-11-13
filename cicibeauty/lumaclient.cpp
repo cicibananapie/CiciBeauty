@@ -4,6 +4,7 @@
 
 #include "lumaclient.h"
 
+#include <cassert>
 #include <condition_variable>
 #include <cstring>
 
@@ -118,6 +119,12 @@ void LumaClient::stop() {
         ipc_->removeCallback(this);
         ipc_->stop();
     }
+    const auto asyncCalls = asyncCalls_;
+    for (const auto& [id, complete] : asyncCalls) {
+        if (asyncCalls_.contains(id)) {
+            complete({cici::protocol::CallStatus::Closed});
+        }
+    }
     const auto listeners = listeners_;
     for (const auto& [owner, listener] : listeners) {
         if (listeners_.contains(owner) && listener.closed) {
@@ -179,6 +186,45 @@ cici::protocol::CallResult LumaClient::call(std::string_view method, const nlohm
     return std::move(pending->result);
 }
 
+void LumaClient::callAsync(QObject* owner, std::string_view method, const nlohmann::json& body,
+                           std::function<void(cici::protocol::CallResult)> callback) {
+    makesureMainThread();
+    using namespace cici::protocol;
+    assert(owner && callback);
+    uint64_t requestId;
+    CallStatus status = CallStatus::Success;
+    {
+        std::lock_guard<std::mutex> lock(stateMtx_);
+        requestId = ++nextRequestId_;
+        if (method.empty() || !body.is_object()) {
+            status = CallStatus::InvalidRequest;
+        } else if (!active_ || !connected_) {
+            status = CallStatus::NotConnected;
+        }
+    }
+    const auto destroyed = QObject::connect(owner, &QObject::destroyed, [this, requestId]() {
+        asyncCalls_.erase(requestId);
+    });
+    auto complete = [this, requestId, destroyed, callback = std::move(callback)](CallResult result) {
+        QObject::disconnect(destroyed);
+        asyncCalls_.erase(requestId);
+        callback(std::move(result));
+    };
+    asyncCalls_.emplace(requestId, complete);
+    if (status == CallStatus::Success && !postMsg(callRequest(requestId, method, body))) {
+        status = CallStatus::Closed;
+    }
+    if (status != CallStatus::Success) {
+        QMetaObject::invokeMethod(owner, [this, requestId, status]() {
+            const auto it = asyncCalls_.find(requestId);
+            if (it != asyncCalls_.end()) {
+                auto complete = it->second;
+                complete({status});
+            }
+        }, Qt::QueuedConnection);
+    }
+}
+
 bool LumaClient::onReadMessage(const BinaryStream& rawMsg) {
     using namespace cici::protocol;
     JsonMessage message;
@@ -189,8 +235,11 @@ bool LumaClient::onReadMessage(const BinaryStream& rawMsg) {
     const auto requestId = message.value["requestId"].get<uint64_t>();
     std::lock_guard<std::mutex> lock(stateMtx_);
     const auto it = calls_.find(requestId);
-    if (it == calls_.end() || it->second->completed) {
-        return true; // Late, duplicate or unknown response.
+    if (it == calls_.end()) {
+        return false; // Asynchronous responses are dispatched on the main thread.
+    }
+    if (it->second->completed) {
+        return true; // Duplicate response to a synchronous call.
     }
     auto& pending = *it->second;
     if (message.value["ok"].get<bool>()) {
@@ -263,8 +312,23 @@ void LumaClient::onIPCMsg(const BinaryStream& message) {
         }
     }
     cici::protocol::JsonMessage decoded;
-    if (!decoded.fromBinary(message) || decoded.isRequest() || decoded.isResponse()) {
+    if (!decoded.fromBinary(message) || decoded.isRequest()) {
         LogWarn << "invalid ciciluma IPC notification" << logEnd;
+        return;
+    }
+    if (decoded.isResponse()) {
+        const auto it = asyncCalls_.find(decoded.value["requestId"].get<uint64_t>());
+        if (it != asyncCalls_.end()) {
+            using namespace cici::protocol;
+            auto complete = it->second;
+            if (decoded.value["ok"].get<bool>()) {
+                complete({CallStatus::Success, std::move(decoded.value["body"])});
+            } else {
+                const auto& error = decoded.value["error"];
+                complete({CallStatus::RemoteError, nlohmann::json::object(), error["code"].get<std::string>(),
+                          error["message"].get<std::string>()});
+            }
+        }
         return;
     }
     const auto listeners = listeners_;

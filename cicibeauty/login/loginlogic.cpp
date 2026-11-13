@@ -63,9 +63,6 @@ LoginLogic::LoginLogic(QObject* parent) : QObject(parent) {
         [this]() {
             info_ = LoginInfo{LoginFailed};
             emit loginFailed(LoginFailureReason::ServiceUnavailable, u8"Login service unavailable");
-        },
-        [this]() {
-            refresh();
         });
 }
 
@@ -92,15 +89,4 @@ void LoginLogic::logout() {
 }
 void LoginLogic::openProfilePage() {
     post("login.openProfile");
-}
-
-void LoginLogic::refresh() {
-    const auto result =
-        LumaClient::instance().call("login.getInfo", nlohmann::json::object(), std::chrono::milliseconds(100));
-    LoginInfo info;
-    if (result.status != CallStatus::Success || !readLoginInfo(result.body, info)) {
-        LogWarn << "refresh login info failed, status=" << static_cast<int>(result.status) << logEnd;
-        return;
-    }
-    info_ = std::move(info);
 }
