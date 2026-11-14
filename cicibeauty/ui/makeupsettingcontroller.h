@@ -16,6 +16,7 @@
 #include "ciciwidget.h"
 #include "../obsinfo.h"
 #include "../modelapp.h"
+#include "../lumaclient.h"
 #include "dynamicparamui.h"
 
 class QPixmap;
@@ -74,7 +75,7 @@ private:
     QList<EffectItemWidget*> widgets_;
     GlobalModel *app_ = nullptr;
     IEffectConflictResolver *conflictResolver_ = nullptr;
-    uint64_t paramQueryId_ = 0;
+    LumaRequestScope paramRequests_;
     bool loadingConfig_ = false;
 };
 
@@ -127,7 +128,7 @@ private:
     QList<EffectItemWidget*> widgets_;
     GlobalModel *app_ = nullptr;
     IEffectConflictResolver *conflictResolver_ = nullptr;
-    uint64_t paramQueryId_ = 0;
+    LumaRequestScope paramRequests_;
     bool loadingConfig_ = false;
 };
 

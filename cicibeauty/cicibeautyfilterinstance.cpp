@@ -172,14 +172,14 @@ std::u8string CiciBeautyFilterInstance::consumePendingRemoveTrigger(const std::u
 }
 
 void CiciBeautyFilterInstance::queryEffectParamValues(
-    QObject* owner, const std::vector<std::u8string>& paths,
+    LumaRequestScope& requests, const std::vector<std::u8string>& paths,
     std::function<void(const nlohmann::json&)> callback, bool defaultOnly) const {
     auto queryPaths = nlohmann::json::array();
     for (const auto& path : paths) {
         queryPaths.push_back(to_json(path));
     }
-    LumaClient::instance().callAsync(
-        owner, "instance.queryParamValues",
+    requests.callAsync(
+        u8"params", "instance.queryParamValues",
         {{"instanceId", to_json(filterUuid_)}, {"paths", std::move(queryPaths)}, {"defaultOnly", defaultOnly}},
         [callback = std::move(callback)](cici::protocol::CallResult result) {
             const auto values = result.body.find("values");

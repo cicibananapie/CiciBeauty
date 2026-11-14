@@ -12,6 +12,7 @@
 #include "ciciwidget.h"
 #include "../obsinfo.h"
 #include "../modelapp.h"
+#include "../lumaclient.h"
 #include "dynamicparamui.h"
 
 class QLabel;
@@ -104,7 +105,7 @@ private:
     std::vector<EffectItemWidget*> widgets_;
     std::map<uint32_t, MovementData> movements_;
     GlobalModel *app_ = nullptr;
-    uint64_t paramQueryId_ = 0;
+    LumaRequestScope paramRequests_;
     bool loadingConfig_ = false;
 };
 

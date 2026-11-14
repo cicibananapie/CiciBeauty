@@ -125,7 +125,7 @@ void StylizedMakeupController::onHVModeChanged(ObsInfo::HVMode mode) {
 }
 
 void StylizedMakeupController::onFilterModelChanged(FilterModel* oldModel, FilterModel* newModel) {
-    ++paramQueryId_;
+    paramRequests_.reset();
     if (oldModel != nullptr) {
         oldModel->obsInfo()->unregisterObserver(this);
     }
@@ -313,7 +313,7 @@ void StylizedMakeupController::reset() {
 }
 
 void StylizedMakeupController::hideParamUI() {
-    ++paramQueryId_;
+    paramRequests_.reset();
     paramUI_.effectId_ = 0;
     paramUI_.hide();
 }
@@ -328,10 +328,7 @@ void StylizedMakeupController::showParamUI(uint32_t effectId) {
         paths.push_back(stylizedMakeupParamPath(effectId, stylizedMakeupParamKey(idx)));
     }
     model->queryEffectParamValues(
-        this, paths, [this, queryId = paramQueryId_, effectId, paths](const nlohmann::json& values) {
-            if (queryId != paramQueryId_) {
-                return;
-            }
+        paramRequests_, paths, [this, effectId, paths](const nlohmann::json& values) {
             paramUI_.effectId_ = effectId;
             uint32_t visibleCount = 0;
             for (auto idx = 0u; idx < paths.size(); idx++) {
@@ -462,7 +459,7 @@ void MakeupCategoryWidget::onHVModeChanged(ObsInfo::HVMode mode) {
 }
 
 void MakeupCategoryWidget::onFilterModelChanged(FilterModel* oldModel, FilterModel* newModel) {
-    ++paramQueryId_;
+    paramRequests_.reset();
     if (oldModel != nullptr) {
         oldModel->obsInfo()->unregisterObserver(this);
     }
@@ -576,7 +573,7 @@ void MakeupCategoryWidget::restoreFromConfig(EffectItemWidget* newWidget) {
 }
 
 void MakeupCategoryWidget::hideSlider() {
-    ++paramQueryId_;
+    paramRequests_.reset();
     QSignalBlocker blocker(dynamicParamUI_.slider_);
     dynamicParamUI_.setIntValue(kEmergencyUiValue);
     dynamicParamUI_.hide();
@@ -591,10 +588,7 @@ void MakeupCategoryWidget::showSlider() {
     }
     const auto path = customizedMakeupStrengthPath(id(), selectedWidget_->id());
     model->queryEffectParamValues(
-        this, {path}, [this, queryId = paramQueryId_, path](const nlohmann::json& values) {
-            if (queryId != paramQueryId_) {
-                return;
-            }
+        paramRequests_, {path}, [this, path](const nlohmann::json& values) {
             const auto value = values.find(to_char(path));
             if (value == values.end() || value->get<int>() < 0) {
                 return;

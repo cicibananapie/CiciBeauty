@@ -12,6 +12,7 @@
 #include "ciciwidget.h"
 #include "dynamicparamui.h"
 #include "../modelapp.h"
+#include "../lumaclient.h"
 
 class QPixmap;
 class QCheckBox;
@@ -110,7 +111,7 @@ private:
     bool active_ = false;
     GlobalModel *app_ = nullptr;
     const char* templateName_ = nullptr;
-    uint64_t paramQueryId_ = 0;
+    LumaRequestScope paramRequests_;
     bool loadingConfig_ = false;
 };
 

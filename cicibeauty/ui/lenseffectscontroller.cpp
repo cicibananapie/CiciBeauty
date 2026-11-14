@@ -321,7 +321,7 @@ void CameraMovementController::onHVModeChanged(ObsInfo::HVMode mode) {
 }
 
 void CameraMovementController::onFilterModelChanged(FilterModel* oldModel, FilterModel* newModel) {
-    ++paramQueryId_;
+    paramRequests_.reset();
     if (oldModel != nullptr) {
         oldModel->obsInfo()->unregisterObserver(this);
     }
@@ -488,7 +488,7 @@ void CameraMovementController::reset() {
 }
 
 void CameraMovementController::hideSlider() {
-    ++paramQueryId_;
+    paramRequests_.reset();
 	dynamicUI_.effectId_ = 0;
 	dynamicUI_.hide();
 }
@@ -504,11 +504,8 @@ void CameraMovementController::showSlider() {
     const auto speedPath = cameraMovementParamPath(id, u8"speed");
     const auto amplitudePath = cameraMovementParamPath(id, u8"amplitude");
     model->queryEffectParamValues(
-        this, {speedPath, amplitudePath},
-        [this, queryId = paramQueryId_, id, speedPath, amplitudePath](const nlohmann::json& values) {
-            if (queryId != paramQueryId_) {
-                return;
-            }
+        paramRequests_, {speedPath, amplitudePath},
+        [this, id, speedPath, amplitudePath](const nlohmann::json& values) {
             auto& movement = movements_[id];
             const auto speed = values.find(to_char(speedPath));
             if (speed != values.end() && speed->get<int>() >= 0) {

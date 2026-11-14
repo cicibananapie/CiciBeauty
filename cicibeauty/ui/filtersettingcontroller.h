@@ -15,6 +15,7 @@
 #include "ciciwidget.h"
 #include "../obsinfo.h"
 #include "../modelapp.h"
+#include "../lumaclient.h"
 #include "dynamicparamui.h"
 
 class QLabel;
@@ -95,6 +96,6 @@ private:
     GlobalModel *app_ = nullptr;
     IEffectConflictResolver *conflictResolver_ = nullptr;
     int favoriteCount_ = 0;
-    uint64_t paramQueryId_ = 0;
+    LumaRequestScope paramRequests_;
     bool loadingConfig_ = false;
 };

@@ -9,6 +9,7 @@
 #include "ciciwidget.h"
 #include "dynamicparamui.h"
 #include "../modelapp.h"
+#include "../lumaclient.h"
 
 class QLabel;
 class QSlider;
@@ -149,6 +150,7 @@ private:
     EffectDetailInfo midFace_;
     EffectDetailInfo lowerFace_;
     GlobalModel *app_ = nullptr;
+    LumaRequestScope paramRequests_;
     bool loadingConfig_ = false;
 };
 

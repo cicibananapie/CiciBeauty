@@ -28,7 +28,7 @@ public:
     ObsInfo* obsInfo() const override;
     const std::u8string& filterUuid() const override;
     std::u8string sourceUuid() const override;
-    void queryEffectParamValues(QObject* owner, const std::vector<std::u8string>& paths,
+    void queryEffectParamValues(LumaRequestScope& requests, const std::vector<std::u8string>& paths,
                                 std::function<void(const nlohmann::json&)> callback,
                                 bool defaultOnly = false) const override;
     void canActivateEffect(QObject* owner, uint64_t id,

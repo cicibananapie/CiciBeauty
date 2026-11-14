@@ -566,7 +566,7 @@ std::u8string KeyingTemplateController::paramPath(const EffectDetailInfo2& param
 
 void KeyingTemplateController::loadParams(bool defaultOnly, const nlohmann::json& config,
                                           std::function<void()> complete) {
-    const auto queryId = ++paramQueryId_;
+    paramRequests_.reset();
     setEnabled(false);
     auto* model = app_->filterModel();
     if (model == nullptr) {
@@ -577,11 +577,11 @@ void KeyingTemplateController::loadParams(bool defaultOnly, const nlohmann::json
         paths.push_back(paramPath(*param));
     }
     model->queryEffectParamValues(
-        this, paths,
-        [this, queryId, instanceId = model->filterUuid(), config, paths,
+        paramRequests_, paths,
+        [this, instanceId = model->filterUuid(), config, paths,
          complete = std::move(complete)](const nlohmann::json& values) {
             const auto* currentModel = app_->filterModel();
-            if (queryId != paramQueryId_ || currentModel == nullptr || currentModel->filterUuid() != instanceId) {
+            if (currentModel == nullptr || currentModel->filterUuid() != instanceId) {
                 return;
             }
             for (size_t i = 0; i < paths.size(); ++i) {

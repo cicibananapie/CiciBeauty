@@ -164,7 +164,7 @@ void FilterSettingController::onHVModeChanged(ObsInfo::HVMode mode) {
 }
 
 void FilterSettingController::onFilterModelChanged(FilterModel* oldModel, FilterModel* newModel) {
-    ++paramQueryId_;
+    paramRequests_.reset();
     if (oldModel != nullptr) {
         oldModel->obsInfo()->unregisterObserver(this);
     }
@@ -344,7 +344,7 @@ void FilterSettingController::refreshSelectedParamUi() {
 }
 
 void FilterSettingController::hideSlider() {
-    ++paramQueryId_;
+    paramRequests_.reset();
     dynamicParamUI_.hide();
     favoriteDynamicParamUI_.hide();
 }
@@ -359,10 +359,7 @@ void FilterSettingController::showSlider() {
     const auto effectId = selectedWidget_->id();
     const auto path = filterStrengthPath(effectId);
     model->queryEffectParamValues(
-        this, {path}, [this, queryId = paramQueryId_, effectId, path](const nlohmann::json& values) {
-            if (queryId != paramQueryId_) {
-                return;
-            }
+        paramRequests_, {path}, [this, effectId, path](const nlohmann::json& values) {
             const auto value = values.find(to_char(path));
             if (value == values.end() || value->get<int>() < 0) {
                 return;

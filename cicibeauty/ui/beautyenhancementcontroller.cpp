@@ -210,6 +210,7 @@ void SolutionController::json2Me(const nlohmann::json& j) {
 }
 
 void SolutionController::json2Me(const nlohmann::json& j, uint32_t solutionIndex) {
+    paramRequests_.reset();
     loadingConfig_ = true;
     setEnabled(false);
     std::vector<EffectDetailInfo*> params;
@@ -325,7 +326,7 @@ void SolutionController::json2Me(const nlohmann::json& j, uint32_t solutionIndex
         return;
     }
     model->queryEffectParamValues(
-        this, paths, [this, instanceId = model->filterUuid(), params, paths](const nlohmann::json& values) {
+        paramRequests_, paths, [this, instanceId = model->filterUuid(), params, paths](const nlohmann::json& values) {
             const auto* currentModel = app_->filterModel();
             if (currentModel == nullptr || currentModel->filterUuid() != instanceId) {
                 return;

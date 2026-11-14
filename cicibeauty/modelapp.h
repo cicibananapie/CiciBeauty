@@ -18,6 +18,7 @@ class AssetsMgr;
 class UpdateClient;
 class ISettingConfig;
 class SubscriptionController;
+class LumaRequestScope;
 class QObject;
 class QWidget;
 
@@ -28,7 +29,7 @@ public:
 	virtual ObsInfo *obsInfo() const = 0;
 	virtual std::u8string sourceUuid() const = 0;
     // Returns resolved path/value pairs; missing parameters are omitted and request failure returns an empty object.
-    virtual void queryEffectParamValues(QObject* owner, const std::vector<std::u8string>& paths,
+    virtual void queryEffectParamValues(LumaRequestScope& requests, const std::vector<std::u8string>& paths,
                                         std::function<void(const nlohmann::json&)> callback,
                                         bool defaultOnly = false) const = 0;
     // Reports request failure as false with an empty patch.
