@@ -16,6 +16,8 @@ enum class PreviewSource : uint32_t {
 
 inline constexpr uint32_t kPreviewSlots = 3;
 
+// preview.autoKeying: request {instanceId}, asynchronous reply {rgba, similarity}.
+
 // One FIFO record leases the corresponding GPU texture until releaseRead().
 // No pixels or process-local pointers are stored in this queue.
 struct PreviewFrame {

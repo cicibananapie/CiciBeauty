@@ -821,32 +821,17 @@ void GPURenderWidget::autoKeying(GlobalModel* app, QObject* owner, std::function
     if (!model) {
         return;
     }
-    auto* request = new QObject(owner);
-    const auto requestId = to_char(CiciUUID::generate());
     const auto instance = model->filterUuid();
-    connect(request, &QObject::destroyed, [](QObject* object) {
-        LumaClient::instance().removeListener(object);
-    });
-    LumaClient::instance().addListener(request,
-        [request, requestId, instance, app, callback = std::move(callback)](const JsonMessage& message) {
-            const auto& body = message.value["body"];
-            if (body.value("requestId", std::string()) != requestId) {
+    LumaClient::instance().callAsync(owner, "preview.autoKeying", {{"instanceId", to_char(instance)}},
+        [instance, app, callback = std::move(callback)](CallResult result) {
+            const auto& body = result.body;
+            if (!result.ok() || !body.contains("rgba") || !body["rgba"].is_number_unsigned() ||
+                !body.contains("similarity") || !body["similarity"].is_number()) {
+                LogWarn << "Auto keying request failed, status=" << static_cast<int>(result.status) << logEnd;
                 return;
             }
-            const auto method = message.value["method"].get<std::string>();
-            if (method == "preview.autoKeyingResult" || method == "preview.failed") {
-                LumaClient::instance().removeListener(request);
-                request->deleteLater();
-                if (method == "preview.autoKeyingResult" && app->filterModel() &&
-                    app->filterModel()->filterUuid() == instance) {
-                    callback(body.value("rgba", uint32_t{0}), body.value("similarity", 0.0f));
-                }
+            if (app->filterModel() && app->filterModel()->filterUuid() == instance) {
+                callback(body["rgba"].get<uint32_t>(), body["similarity"].get<float>());
             }
-        }, [request]() {
-            request->deleteLater();
         });
-    if (!LumaClient::instance().postMsg(JsonMessage("preview.autoKeying", {
-            {"instanceId", to_char(instance)}, {"requestId", requestId}}))) {
-        delete request;
-    }
 }
