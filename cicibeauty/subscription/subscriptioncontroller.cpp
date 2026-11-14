@@ -31,6 +31,7 @@ SubscriptionController::SubscriptionController() {
                 LogWarn << "invalid subscription status in notification: " << method << logEnd;
                 return;
             }
+            requests_.reset();
             status_ = std::move(status);
             if (method == "subscription.updated") {
                 emit subscriptionInfoUpdated();
@@ -41,6 +42,7 @@ SubscriptionController::SubscriptionController() {
             }
         },
         [this]() {
+            requests_.reset();
             status_ = SubscriptionStatus{};
             emit subscriptionInfoUpdated();
         });
@@ -51,9 +53,15 @@ SubscriptionController::~SubscriptionController() {
 }
 
 void SubscriptionController::refresh() {
-    if (!LumaClient::instance().postMsg(JsonMessage("subscription.refresh", nlohmann::json::object()))) {
-        LogWarn << "send subscription refresh failed" << logEnd;
-    }
+    requests_.callAsync(u8"refresh", "subscription.refresh", nlohmann::json::object(), [this](CallResult result) {
+        SubscriptionStatus status;
+        if (result.ok() && readSubscriptionStatus(result.body, status)) {
+            status_ = std::move(status);
+            emit subscriptionInfoUpdated();
+        } else {
+            LogWarn << "subscription refresh failed, status=" << static_cast<int>(result.status) << logEnd;
+        }
+    });
 }
 
 void SubscriptionController::openPurchasePage() {

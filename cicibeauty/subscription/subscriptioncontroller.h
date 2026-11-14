@@ -7,6 +7,7 @@
 #include <QObject>
 
 #include "protocol/account.h"
+#include "../lumaclient.h"
 
 // Qt interface with a local snapshot. ciciluma owns subscription checks and timers.
 class SubscriptionController : public QObject {
@@ -39,5 +40,6 @@ signals:
     void aboutToExpire(SubscriptionType curType, uint32_t howManyDaysBeforeExpire);
 
 private:
+  LumaRequestScope requests_;
   SubscriptionStatus status_;
 };

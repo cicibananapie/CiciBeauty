@@ -72,6 +72,8 @@ struct SubscriptionStatus {
 
 namespace cici::protocol {
 
+// subscription.refresh: asynchronous request, reply with subscriptionStatusJson or an error.
+
 inline nlohmann::json loginInfoJson(const LoginInfo& info) {
     return {{"state", static_cast<unsigned>(info.state)},
             {"uid", to_json(info.uid)},
