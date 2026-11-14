@@ -10,6 +10,8 @@
 #include <unordered_map>
 #include <vector>
 
+#include <QObject>
+
 #include "protocol/assets.h"
 
 class EffectCatalog {
@@ -44,6 +46,7 @@ public:
 private:
     bool applySnapshot(const nlohmann::json& body);
 
+    QObject requestOwner_;
     nlohmann::json catalogs_ = nlohmann::json::object();
     std::vector<EffectInfo> effects_;
     std::unordered_map<uint64_t, size_t> effectIndex_;

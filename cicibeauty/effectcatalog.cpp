@@ -24,27 +24,27 @@ EffectCatalog::~EffectCatalog() {
 void EffectCatalog::load() {
     LumaClient::instance().addListener(
         this,
-        [this](const cici::protocol::JsonMessage& message) {
-            if (message.value["method"] != "catalog.snapshot") {
-                return;
-            }
-            if (!applySnapshot(message.value["body"])) {
-                LogError << "invalid effect catalog snapshot" << logEnd;
-                return;
-            }
-            ready_ = true;
-            if (ready) {
-                ready();
-            }
-        },
+        {},
         [this]() {
             ready_ = false;
             LogWarn << "effect catalog service disconnected" << logEnd;
         },
-        []() {
-            if (!LumaClient::instance().postMsg(cici::protocol::requestCatalogSnapshot())) {
-                LogError << "request effect catalog snapshot failed" << logEnd;
-            }
+        [this]() {
+            LumaClient::instance().callAsync(&requestOwner_, "catalog.getSnapshot", nlohmann::json::object(),
+                [this](cici::protocol::CallResult result) {
+                    if (!result.ok()) {
+                        LogError << "request effect catalog snapshot failed" << logEnd;
+                        return;
+                    }
+                    if (!applySnapshot(result.body)) {
+                        LogError << "invalid effect catalog snapshot" << logEnd;
+                        return;
+                    }
+                    ready_ = true;
+                    if (ready) {
+                        ready();
+                    }
+                });
         });
 }
 
