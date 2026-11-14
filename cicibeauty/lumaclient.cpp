@@ -161,7 +161,7 @@ void LumaClient::callAsync(QObject* owner, std::string_view method, const nlohma
         requestId = ++nextRequestId_;
         if (method.empty() || !body.is_object()) {
             status = CallStatus::InvalidRequest;
-        } else if (!active_ || !connected_) {
+        } else if (!active_) {
             status = CallStatus::NotConnected;
         }
     }

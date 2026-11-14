@@ -36,7 +36,7 @@ signals:
                   const QString& errorCode, const QString& message);
 
 private:
-    bool launch();
+    void launch();
     void sendCancellation();
     void finishSession();
     void fail(std::u8string errorCode, const QString& message);

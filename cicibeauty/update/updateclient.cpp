@@ -24,7 +24,6 @@
 #include "../i18nsupport.h"
 #include "../lumaclient.h"
 #include "../qstringconv.h"
-#include "protocol/helpers.h"
 #include "../statistics/updateanalytics.h"
 #include "../ui/commonui.h"
 
@@ -80,18 +79,9 @@ UpdateClient::UpdateClient(GlobalModel *app) : app_(app) {
     ipc_ = new IPCServer(key_.c_str());
     ipc_->addCallback(this);
     ipc_->start();
-    LumaClient::instance().addListener(this, [this](const cici::protocol::JsonMessage& message) {
-        const auto& body = message.value["body"];
-        if (message.value["method"] == "helpers.startFailed" && body.value("helper", "") == "updater" &&
-            body.value("ipcName", std::string()) == to_char(key_)) {
-            LogError << "luma could not start updater" << logEnd;
-            onClosed();
-        }
-    }, {});
 }
 
 UpdateClient::~UpdateClient() {
-    LumaClient::instance().removeListener(this);
     ipc_->removeCallback(this);
     delete ipc_;
     ipc_ = nullptr;
@@ -106,11 +96,15 @@ void UpdateClient::check() {
     targetVersion_.clear();
     updateAttempt_ = 0;
     checkResultReported_ = false;
-    if (!LumaClient::instance().postMsg(cici::protocol::startUpdater(
-            key_, std::u8string(CICI_VERSION), to_u8(I18nSupport::currentLocaleName())))) {
-        LogError << "send updater launch request failed" << logEnd;
-        onClosed();
-    }
+    LumaClient::instance().callAsync(
+        this, "helpers.startUpdater", {{"ipcName", to_char(key_)}, {"version", to_char(std::u8string(CICI_VERSION))},
+                                       {"locale", to_char(to_u8(I18nSupport::currentLocaleName()))}},
+        [this](cici::protocol::CallResult result) {
+            if (!result.ok() && !ipc_->connected()) {
+                LogError << "luma could not start updater" << logEnd;
+                onClosed();
+            }
+        });
 }
 
 void UpdateClient::startUpdate(UpdateType type) {

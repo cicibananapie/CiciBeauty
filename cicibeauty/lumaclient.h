@@ -33,6 +33,7 @@ public:
     uint64_t connectionId();
 
     // Main-thread request and callback. Destroying owner cancels local delivery.
+    // Requests wait for connection while the service is starting.
     void callAsync(QObject* owner, std::string_view method, const nlohmann::json& body,
                    std::function<void(cici::protocol::CallResult)> callback);
 

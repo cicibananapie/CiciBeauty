@@ -17,7 +17,6 @@
 #include "misc.h"
 #include "nlohmann/json.hpp"
 #include "uuid.h"
-#include "protocol/helpers.h"
 
 namespace {
 
@@ -31,14 +30,6 @@ bool isServerErrorCode(std::u8string_view code) {
 }  // namespace
 
 FeedbackClient::FeedbackClient(QObject* parent) : QObject(parent) {
-    LumaClient::instance().addListener(this, [this](const cici::protocol::JsonMessage& message) {
-        const auto& body = message.value["body"];
-        if (message.value["method"] == "helpers.startFailed" && body.value("helper", "") == "feedback" &&
-            body.value("ipcName", std::string()) == to_char(key_) &&
-            (state_ == State::Connecting || state_ == State::Cancelling)) {
-            fail(u8"helper_launch_failed", tr("The feedback service could not be started."));
-        }
-    }, {});
     connectionTimer_.setSingleShot(true);
     connect(&connectionTimer_, &QTimer::timeout, this, [this]() {
         fail(u8"helper_start_timeout", tr("The feedback service did not start."));
@@ -57,7 +48,6 @@ FeedbackClient::FeedbackClient(QObject* parent) : QObject(parent) {
 }
 
 FeedbackClient::~FeedbackClient() {
-    LumaClient::instance().removeListener(this);
     if (ipc_) {
         ipc_->removeCallback(this);
     }
@@ -80,10 +70,7 @@ void FeedbackClient::start(const QString& description, const QString& email,
     ipc_ = std::make_unique<IPCServer>(key_.c_str());
     ipc_->addCallback(this);
     ipc_->start();
-    if (!launch()) {
-        fail(u8"helper_launch_failed", tr("The feedback service could not be started."));
-        return;
-    }
+    launch();
     connectionTimer_.start(15 * 1000);
 }
 
@@ -277,6 +264,11 @@ std::u8string FeedbackClient::deviceInfo() const {
     return to_u8(info.dump());
 }
 
-bool FeedbackClient::launch() {
-    return LumaClient::instance().postMsg(cici::protocol::startFeedback(key_));
+void FeedbackClient::launch() {
+    LumaClient::instance().callAsync(this, "helpers.startFeedback", {{"ipcName", to_char(key_)}},
+        [this](cici::protocol::CallResult result) {
+            if (!result.ok() && (state_ == State::Connecting || state_ == State::Cancelling) && !ipc_->connected()) {
+                fail(u8"helper_launch_failed", tr("The feedback service could not be started."));
+            }
+        });
 }

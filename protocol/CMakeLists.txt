@@ -7,7 +7,6 @@ add_library(ciciprotocol INTERFACE
     assets.h
     call.h
     catalog.h
-    helpers.h
     message.h
     preview.h
     session.h
