@@ -7,8 +7,6 @@
 #include <memory>
 #include <mutex>
 #include <vector>
-#include <chrono>
-#include <unordered_map>
 #include <functional>
 #include <map>
 
@@ -18,10 +16,8 @@
 #include "ipcwrapper.h"
 #include "protocol/call.h"
 
-// Lifecycle and ordinary callbacks run on the main thread; postMsg/call accept any thread.
+// Lifecycle and request callbacks run on the main thread; postMsg accepts any thread.
 class LumaClient : public ISimpleIPCCallback {
-    struct PendingCall;
-
 public:
     static LumaClient& instance();
 
@@ -35,11 +31,6 @@ public:
     bool postMsg(const IPCMessage& message);
     // Thread-safe connection generation; zero while disconnected.
     uint64_t connectionId();
-
-    // Requires a completed connection. Blocks without pumping UI events.
-    // Timeout stops waiting locally; it does not cancel the remote operation.
-    cici::protocol::CallResult call(std::string_view method, const nlohmann::json& body,
-                                    std::chrono::milliseconds timeout);
 
     // Main-thread request and callback. Destroying owner cancels local delivery.
     void callAsync(QObject* owner, std::string_view method, const nlohmann::json& body,
@@ -60,7 +51,6 @@ private:
     void onConnected() override;
     void onClosed() override;
     void onIPCMsg(const BinaryStream& message) override;
-    bool onReadMessage(const BinaryStream& message);
     void onTransportClosed();
 
     struct Listener {
@@ -75,10 +65,26 @@ private:
     std::unique_ptr<QTimer> connectionTimer_;
     std::mutex stateMtx_;
     std::vector<BinaryStream> pending_;
-    std::unordered_map<uint64_t, std::shared_ptr<PendingCall>> calls_;
     uint64_t nextRequestId_ = 0;
     bool active_ = false;
     bool connected_ = false;
     uint64_t connectionId_ = 0;
     std::u8string sessionId_;
+};
+
+// Main-thread requests that update independent pieces of state.
+// Older replies still complete, but only the latest reply for a key may apply.
+// reset() invalidates every key; old completions receive Closed.
+// Versions stay local: requestId associates each reply with its captured version.
+class LumaRequestScope : public QObject {
+public:
+    using Callback = std::function<void(cici::protocol::CallResult)>;
+
+    void reset();
+    void callAsync(const std::u8string& key, std::string_view method, const nlohmann::json& body,
+                   Callback apply, Callback complete = {});
+
+private:
+    uint64_t generation_ = 0;
+    std::map<std::u8string, uint64_t> versions_;
 };

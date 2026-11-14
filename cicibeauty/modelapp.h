@@ -36,7 +36,6 @@ public:
                                    std::function<void(bool, const nlohmann::json&)> callback) const = 0;
 	virtual void retryEffectPackageDownload(uint64_t effectId) = 0;
         virtual void applySettingPatch(const nlohmann::json& patch) = 0;
-        virtual bool replaceSettingConfig(nlohmann::json& config) = 0;
 };
 
 class IFilterModelChangeObserver {

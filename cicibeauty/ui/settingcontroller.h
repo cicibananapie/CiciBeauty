@@ -58,9 +58,10 @@ public:
     SettingTarget activeSettingTarget() const;
     bool isActiveSettingTarget(const SettingTarget& target) const;
     nlohmann::json activeSettingConfig(const SettingTarget& target) const;
-    bool importActiveSettingConfig(const SettingTarget& target,
+    void importActiveSettingConfig(const SettingTarget& target,
                                    nlohmann::json config,
-                                   const nlohmann::json& favorites);
+                                   const nlohmann::json& favorites,
+                                   std::function<void(bool)> complete);
     void onCiciFilterChanged(const std::u8string& sourceUuid);
     void confirmEffectActivation(QWidget* owner, uint64_t effectId,
                                  std::function<void(bool)> complete) override;

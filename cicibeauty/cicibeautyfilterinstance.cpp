@@ -221,9 +221,6 @@ void CiciBeautyFilterInstance::applySettingPatch(const nlohmann::json& patch) {
     }
     settings->applyPatch(filterUuid_, patch);
 }
-bool CiciBeautyFilterInstance::replaceSettingConfig(nlohmann::json& config) {
-    return !sourceUuid().empty() && app_->settingConfig()->setConfig(filterUuid_, config);
-}
 void CiciBeautyFilterInstance::onHVModeChanged(ObsInfo::HVMode mode) {
     LumaClient::instance().postMsg(
         cici::protocol::instanceMessage("instance.setMode", filterUuid_, {{"mode", static_cast<uint32_t>(mode)}}));

@@ -35,7 +35,6 @@ public:
                            std::function<void(bool, const nlohmann::json&)> callback) const override;
     void retryEffectPackageDownload(uint64_t id) override;
     void applySettingPatch(const nlohmann::json& patch) override;
-    bool replaceSettingConfig(nlohmann::json& config) override;
 
 private:
     friend class CiciBeautyApp;

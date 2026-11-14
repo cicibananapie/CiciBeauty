@@ -249,7 +249,7 @@ void ImportExportController::onImportBtnClicked() {
     constexpr auto action = ConfigTransferUiAction::ImportClick;
     const std::u8string attemptId = reportConfigTransferUiAction(action);
     const auto startedAt = std::chrono::steady_clock::now();
-    auto finish = [&](ConfigTransferResult result,
+    auto finish = [action, attemptId, startedAt](ConfigTransferResult result,
                       ConfigTransferFailureReason failureReason) {
         const auto durationMs = static_cast<uint64_t>(
             std::chrono::duration_cast<std::chrono::milliseconds>(
@@ -336,19 +336,21 @@ void ImportExportController::onImportBtnClicked() {
         return;
     }
 
-    if (!setting_->importActiveSettingConfig(target, std::move(config), favorites)) {
-        LogError << "import config failed, path:" << fileName << logEnd;
-        finish(ConfigTransferResult::Failed,
-               ConfigTransferFailureReason::ApplyFailed);
-        QMessageBox::warning(this, tr("Import Config"), tr("Failed to import config."));
-        return;
-    }
-
-    LogInfo << "import config success, path:" << fileName << logEnd;
-    finish(ConfigTransferResult::Succeeded,
-           ConfigTransferFailureReason::None);
-    QMessageBox::information(this, tr("Import Config"),
-                             tr("Config imported successfully."));
+    setting_->importActiveSettingConfig(target, std::move(config), favorites,
+        [owner = QPointer<ImportExportController>(this), fileName, finish](bool success) {
+            if (!owner) {
+                return;
+            }
+            if (!success) {
+                LogError << "import config failed, path:" << fileName << logEnd;
+                finish(ConfigTransferResult::Failed, ConfigTransferFailureReason::ApplyFailed);
+                QMessageBox::warning(owner, tr("Import Config"), tr("Failed to import config."));
+                return;
+            }
+            LogInfo << "import config success, path:" << fileName << logEnd;
+            finish(ConfigTransferResult::Succeeded, ConfigTransferFailureReason::None);
+            QMessageBox::information(owner, tr("Import Config"), tr("Config imported successfully."));
+        });
 }
 
 void ImportExportController::onExportBtnClicked() {

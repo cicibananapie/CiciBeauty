@@ -5,20 +5,14 @@
 #include "lumaclient.h"
 
 #include <cassert>
-#include <condition_variable>
 #include <cstring>
+#include <QPointer>
 
 #include "binarymsg.h"
 #include "cicibase.h"
 #include "log.h"
 #include "misc.h"
 #include "uuid.h"
-
-struct LumaClient::PendingCall {
-    std::condition_variable ready;
-    bool completed = false;
-    cici::protocol::CallResult result;
-};
 
 namespace {
 
@@ -77,9 +71,7 @@ bool LumaClient::start() {
         ipc_ = std::make_unique<IPCServer>(key.c_str());
         ipc_->addCallback(this);
         ipc_->setReadCallbacks(
-            [this](const BinaryStream& message) {
-                return onReadMessage(message);
-            },
+            {},
             [this]() {
                 onTransportClosed();
             });
@@ -157,35 +149,6 @@ bool LumaClient::postMsg(const IPCMessage& message) {
     return sent;
 }
 
-cici::protocol::CallResult LumaClient::call(std::string_view method, const nlohmann::json& body,
-                                            std::chrono::milliseconds timeout) {
-    using namespace cici::protocol;
-    if (method.empty() || !body.is_object() || timeout.count() <= 0) {
-        return {CallStatus::InvalidRequest};
-    }
-    const auto deadline = std::chrono::steady_clock::now() + timeout;
-    std::unique_lock<std::mutex> lock(stateMtx_);
-    if (!active_ || !connected_) {
-        return {CallStatus::NotConnected};
-    }
-
-    const auto requestId = ++nextRequestId_;
-    auto pending = std::make_shared<PendingCall>();
-    calls_.emplace(requestId, pending);
-    if (!ipc_->postMsg(callRequest(requestId, method, body))) {
-        calls_.erase(requestId);
-        return {CallStatus::Closed};
-    }
-    if (!pending->ready.wait_until(lock, deadline, [&pending]() {
-            return pending->completed;
-        })) {
-        calls_.erase(requestId);
-        return {CallStatus::Timeout};
-    }
-    calls_.erase(requestId);
-    return std::move(pending->result);
-}
-
 void LumaClient::callAsync(QObject* owner, std::string_view method, const nlohmann::json& body,
                            std::function<void(cici::protocol::CallResult)> callback) {
     makesureMainThread();
@@ -225,48 +188,11 @@ void LumaClient::callAsync(QObject* owner, std::string_view method, const nlohma
     }
 }
 
-bool LumaClient::onReadMessage(const BinaryStream& rawMsg) {
-    using namespace cici::protocol;
-    JsonMessage message;
-    if (!message.fromBinary(rawMsg) || !message.isResponse()) {
-        return false;
-    }
-
-    const auto requestId = message.value["requestId"].get<uint64_t>();
-    std::lock_guard<std::mutex> lock(stateMtx_);
-    const auto it = calls_.find(requestId);
-    if (it == calls_.end()) {
-        return false; // Asynchronous responses are dispatched on the main thread.
-    }
-    if (it->second->completed) {
-        return true; // Duplicate response to a synchronous call.
-    }
-    auto& pending = *it->second;
-    if (message.value["ok"].get<bool>()) {
-        pending.result = {CallStatus::Success, std::move(message.value["body"])};
-    } else {
-        const auto& error = message.value["error"];
-        pending.result = {CallStatus::RemoteError, nlohmann::json::object(), error["code"].get<std::string>(),
-                          error["message"].get<std::string>()};
-    }
-    pending.completed = true;
-    pending.ready.notify_one();
-    return true;
-}
-
 void LumaClient::onTransportClosed() {
     std::lock_guard<std::mutex> lock(stateMtx_);
     active_ = false;
     connected_ = false;
     pending_.clear();
-    for (const auto& [id, pending] : calls_) {
-        if (!pending->completed) {
-            pending->result = {cici::protocol::CallStatus::Closed};
-            pending->completed = true;
-            pending->ready.notify_one();
-        }
-    }
-    calls_.clear();
 }
 
 uint64_t LumaClient::connectionId() {
@@ -356,4 +282,34 @@ void LumaClient::addListener(void* owner, std::function<void(const cici::protoco
 void LumaClient::removeListener(void* owner) {
     makesureMainThread();
     listeners_.erase(owner);
+}
+
+void LumaRequestScope::reset() {
+    makesureMainThread();
+    ++generation_;
+    versions_.clear();
+}
+
+void LumaRequestScope::callAsync(const std::u8string& key, std::string_view method, const nlohmann::json& body,
+                                Callback apply, Callback complete) {
+    makesureMainThread();
+    assert(apply);
+    const auto version = ++versions_[key];
+    LumaClient::instance().callAsync(this, method, body,
+        [this, key, version, generation = generation_, apply = std::move(apply), complete = std::move(complete)]
+        (cici::protocol::CallResult result) {
+            const QPointer<LumaRequestScope> alive(this);
+            if (generation == generation_ && versions_.at(key) == version) {
+                apply(result);
+            }
+            if (!alive) {
+                return;
+            }
+            if (complete) {
+                if (generation != generation_) {
+                    result = {cici::protocol::CallStatus::Closed};
+                }
+                complete(std::move(result));
+            }
+        });
 }

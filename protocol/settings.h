@@ -8,18 +8,20 @@
 
 namespace cici::protocol {
 
-// Settings calls: getSnapshot -> {uid, defaults, favorites};
-// getConfig {instanceId} / replace {uid, instanceId, config} -> {config};
+// Settings asynchronous requests:
+// getSnapshot {} -> {uid, defaults, favorites, configs};
+// getConfig {uid, instanceId} -> {config}; getFavorites {uid} -> {favorites};
+// replace {uid, instanceId, config} -> {config};
 // replaceFavorites {uid, favorites} -> {favorites}.
-// Settings posts: patch {uid, instanceId, patch},
-// setFavorite {uid, page, effectId, favorite}.
-// Notifications: settings.snapshot and settings.changed {uid, instanceId, config}.
+// patch {uid, instanceId, patch} -> {config};
+// setFavorite {uid, page, effectId, favorite} -> {favorites}.
+// Configuration data is returned only in request replies; reads in the UI use the local mirror.
 // Mutations carry the cached uid so queued work cannot change another account.
 //
 // Each instance owns its configuration, keyed by instanceId.
 // Instance posts: create {instanceId, videoChannel, sourceUuid?, sourceType?}, destroy {instanceId},
 // setMode {instanceId, mode: 1(horizontal)/2(vertical)}, retryPackage {instanceId, effectId}.
-// Instance calls: getParamValue/getDefaultParamValue {instanceId, path} -> {found, value};
+// Instance calls: queryParamValues {instanceId, paths, defaultOnly?} -> {values};
 // canActivateEffect {instanceId, effectId} -> {allowed, disablePatch}.
 // disablePatch contains add operations to disable conflicts; the query does not mutate settings.
 

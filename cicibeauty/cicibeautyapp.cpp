@@ -932,6 +932,7 @@ void CiciBeautyApp::ensureSettingConfig() {
     }
 
     settingConfig_ = std::make_unique<SettingConfig>();
+    QObject::connect(settingConfig_.get(), &ISettingConfig::ready, this, &CiciBeautyApp::createSettingWidget);
 }
 
 void CiciBeautyApp::ensureEffectCatalog() {
@@ -973,7 +974,7 @@ void CiciBeautyApp::ensureUpdater() {
 
 void CiciBeautyApp::createSettingWidget() {
     if (settingWidget_ != nullptr || dockContainer_ == nullptr || effectCatalog_ == nullptr ||
-        !effectCatalog_->isReady()) {
+        !effectCatalog_->isReady() || settingConfig_ == nullptr || !settingConfig_->isReady()) {
         return;
     }
     settingWidget_ = new SettingController(this);

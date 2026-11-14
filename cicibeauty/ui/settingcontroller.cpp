@@ -403,6 +403,21 @@ void SettingController::createUI() {
     QObject::connect(app_->subscriptionController(),
                      &SubscriptionController::subscriptionInfoUpdated,
                      this, &SettingController::updateAccessOverlay);
+    QObject::connect(app_->settingConfig(), &ISettingConfig::configAdjusted, this,
+                     [this](const std::u8string& id) {
+        if (id == selectedCiciFilterUuid()) {
+            loadSettingConfig(selectedSourceUuid());
+        }
+    });
+    QObject::connect(app_->settingConfig(), &ISettingConfig::favoritesChanged,
+                     this, &SettingController::reloadFavoriteViews);
+    QObject::connect(app_->settingConfig(), &ISettingConfig::ready, this, [this]() {
+        loadSettingConfig(selectedSourceUuid());
+        reloadFavoriteViews();
+    });
+    QObject::connect(app_->settingConfig(), &ISettingConfig::invalidated, this, [this]() {
+        updateSettingTabsEnabled(false);
+    });
     connectObsSignals();
     refreshSourceCombo();
     syncSelectedFilterModel();
@@ -596,7 +611,7 @@ void SettingController::loadSettingConfig(const std::u8string& sourceUuid) {
     const std::u8string modelSourceUuid = model != nullptr
         ? model->sourceUuid()
         : std::u8string();
-    const bool modelReady = model != nullptr && modelSourceUuid == sourceUuid;
+    const bool modelReady = model != nullptr && modelSourceUuid == sourceUuid && app_->settingConfig()->isReady();
     updateSettingTabsEnabled(hasFilter && modelReady);
 
     if (sourceUuid.empty() || !hasFilter) {
@@ -610,6 +625,7 @@ void SettingController::loadSettingConfig(const std::u8string& sourceUuid) {
     }
 
     LogDebug << "Setting config load source_uuid=" << sourceUuid << logEnd;
+    app_->settingConfig()->refreshConfig(filterUuid);
     const nlohmann::json config = app_->settingConfig()->config(filterUuid);
     this->json2Me(config);
 }
@@ -1199,32 +1215,41 @@ nlohmann::json SettingController::activeSettingConfig(const SettingTarget& targe
     return config;
 }
 
-bool SettingController::importActiveSettingConfig(
+void SettingController::importActiveSettingConfig(
     const SettingTarget& target,
     nlohmann::json config,
-    const nlohmann::json& favorites) {
-    if (!isActiveSettingTarget(target)) {
-        return false;
-    }
-
-    auto* model = app_->filterModel();
-    if (model == nullptr) {
-        return false;
+    const nlohmann::json& favorites,
+    std::function<void(bool)> complete) {
+    if (!isActiveSettingTarget(target) || app_->filterModel() == nullptr) {
+        complete(false);
+        return;
     }
 
     auto* settingConfig = app_->settingConfig();
-    if (!settingConfig->replaceFavorites(favorites)) {
-        return false;
-    }
-
     config["version"] = 1;
     config["selected"] = tabBar_->currentRow();
-    if (!model->replaceSettingConfig(config)) {
-        return false;
+    // Submit in order without waiting, so later user edits follow this replacement.
+    // The import succeeds only after both backend acknowledgments.
+    struct ImportResult {
+        int remaining = 2;
+        bool success = true;
+    };
+    auto result = std::make_shared<ImportResult>();
+    auto acknowledged = [result, complete = std::move(complete)](bool success) {
+        result->success = result->success && success;
+        if (--result->remaining == 0) {
+            complete(result->success);
+        }
+    };
+    if (!settingConfig->replaceFavorites(favorites, acknowledged)) {
+        acknowledged(false);
     }
-    json2Me(config);
-    reloadFavoriteViews();
-    return true;
+    if (settingConfig->setConfig(target.filterUuid, config, acknowledged)) {
+        json2Me(config);
+        reloadFavoriteViews();
+    } else {
+        acknowledged(false);
+    }
 }
 
 void SettingController::reset() {
