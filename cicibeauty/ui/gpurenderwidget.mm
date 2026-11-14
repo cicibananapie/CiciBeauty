@@ -56,8 +56,7 @@ struct GPURenderWidget::Preview {
     Submission submission = Submission::Waiting;
     bool stopping = false;
     QSize renderSize;
-    std::string requestId;
-    std::function<void(uint32_t)> colorPicked;
+    LumaRequestScope colorPickRequests;
 #if CICI_OS_MACOS
     id<MTLDevice> device = nil;
     id<MTLCommandQueue> commands = nil;
@@ -763,12 +762,6 @@ void GPURenderWidget::onPreviewMessage(const JsonMessage& message) {
                 }, Qt::QueuedConnection);
             }
         });
-    } else if (method == "preview.colorPicked" && preview_->requestId == body.value("requestId", std::string())) {
-        auto callback = std::move(preview_->colorPicked);
-        preview_->requestId.clear();
-        if (callback) {
-            callback(body.value("rgba", uint32_t{0}));
-        }
     } else if (method == "preview.failed") {
         LogWarn << "Preview request failed: " << previewId_ << logEnd;
         unregisterNativeWindow();
@@ -809,11 +802,19 @@ void GPURenderWidget::requestColorPick(int x, int y, std::function<void(uint32_t
     if (previewId_.empty()) {
         return;
     }
-    preview_->requestId = to_char(CiciUUID::generate());
-    preview_->colorPicked = std::move(callback);
-    LumaClient::instance().postMsg(JsonMessage("preview.pickColor", {
-        {"instanceId", to_char(instanceId_)}, {"previewId", to_char(previewId_)},
-        {"requestId", preview_->requestId}, {"x", x}, {"y", y}}));
+    preview_->colorPickRequests.callAsync(
+        u8"color", "preview.pickColor",
+        {{"instanceId", to_char(instanceId_)}, {"previewId", to_char(previewId_)}, {"x", x}, {"y", y}},
+        [this, callback = std::move(callback)](CallResult result) {
+            if (!result.ok() || !result.body.contains("rgba") || !result.body["rgba"].is_number_unsigned()) {
+                LogWarn << "Color pick request failed, status=" << static_cast<int>(result.status) << logEnd;
+                unregisterNativeWindow();
+                return;
+            }
+            if (callback) {
+                callback(result.body["rgba"].get<uint32_t>());
+            }
+        });
 }
 
 void GPURenderWidget::autoKeying(GlobalModel* app, QObject* owner, std::function<void(uint32_t, float)> callback) {
