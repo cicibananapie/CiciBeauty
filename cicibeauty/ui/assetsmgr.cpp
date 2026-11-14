@@ -106,9 +106,18 @@ RemoteImageStatus* AssetsMgr::requestRemoteImage(const QString& url) {
 }
 
 void AssetsMgr::startRemoteImageRequest(const std::shared_ptr<RemoteImageStatus>& status) {
-    if (!LumaClient::instance().postMsg(cici::protocol::requestRemoteImage(to_u8(status->url())))) {
-        status->setState(RemoteImageState::Failed);
-    }
+    LumaClient::instance().callAsync(
+        status.get(), "assets.requestRemoteImage", {{"url", to_json(to_u8(status->url()))}},
+        [status = status.get()](cici::protocol::CallResult result) {
+            if (result.ok() && result.body.contains("localPath") && result.body["localPath"].is_string() &&
+                !result.body["localPath"].get_ref<const std::string&>().empty()) {
+                status->localPath_ = from_u8(to_u8(result.body["localPath"].get<std::string>()));
+                status->setState(RemoteImageState::Ready);
+            } else {
+                status->localPath_.clear();
+                status->setState(RemoteImageState::Failed);
+            }
+        });
 }
 
 EffectPackageStatus* AssetsMgr::effectPackageStatus(const EffectAsset& package) {
@@ -157,21 +166,7 @@ void AssetsMgr::downloadEffectPackage(const EffectAsset& package,
 void AssetsMgr::onMessage(const cici::protocol::JsonMessage& message) {
     const auto& method = message.value["method"];
     const auto& body = message.value["body"];
-    if (method == "assets.remoteImageStateChanged") {
-        RemoteImageState state;
-        if (!body.contains("url") || !body["url"].is_string() || !body.contains("localPath") ||
-            !body["localPath"].is_string() || !body.contains("state") ||
-            !cici::protocol::readAssetState(body["state"], state, RemoteImageState::Failed) ||
-            (state == RemoteImageState::Ready && body["localPath"].get_ref<const std::string&>().empty())) {
-            LogWarn << "invalid remote image state notification" << logEnd;
-            return;
-        }
-        const auto it = remoteImages_.find(to_u8(body["url"].get<std::string>()));
-        if (it != remoteImages_.end()) {
-            it->second->localPath_ = from_u8(to_u8(body["localPath"].get<std::string>()));
-            it->second->setState(state);
-        }
-    } else if (method == "assets.effectPackageStateChanged") {
+    if (method == "assets.effectPackageStateChanged") {
         EffectPackageState state;
         if (!body.contains("sha256") || !body["sha256"].is_string() || !body.contains("state") ||
             !cici::protocol::readAssetState(body["state"], state, EffectPackageState::Failed)) {

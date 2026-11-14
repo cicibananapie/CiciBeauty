@@ -97,20 +97,10 @@ template <class State> inline bool readAssetState(const nlohmann::json& value, S
     return true;
 }
 
-inline JsonMessage requestRemoteImage(std::u8string_view url) {
-    return {"assets.requestRemoteImage", {{"url", to_json(std::u8string(url))}}};
-}
+// assets.requestRemoteImage: request {url}, asynchronous reply {localPath} or an error.
 
 inline JsonMessage downloadEffectPackage(const EffectAsset& asset, const EffectOperationContext& context) {
     return {"assets.downloadEffectPackage", {{"package", assetJson(asset)}, {"context", assetContextJson(context)}}};
-}
-
-inline JsonMessage remoteImageStateChanged(std::u8string_view url, RemoteImageState state,
-                                           const std::u8string& localPath) {
-    return {"assets.remoteImageStateChanged",
-            {{"url", to_json(std::u8string(url))},
-             {"state", static_cast<uint8_t>(state)},
-             {"localPath", to_json(localPath)}}};
 }
 
 inline JsonMessage effectPackageStateChanged(std::u8string_view hash, EffectPackageState state) {
