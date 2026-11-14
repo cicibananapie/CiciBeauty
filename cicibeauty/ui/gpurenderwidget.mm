@@ -56,7 +56,7 @@ struct GPURenderWidget::Preview {
     Submission submission = Submission::Waiting;
     bool stopping = false;
     QSize renderSize;
-    LumaRequestScope colorPickRequests;
+    LumaRequestScope requests;
 #if CICI_OS_MACOS
     id<MTLDevice> device = nil;
     id<MTLCommandQueue> commands = nil;
@@ -703,12 +703,42 @@ void GPURenderWidget::registerNativeWindow() {
         unregisterNativeWindow();
     });
     const auto channel = u8"p" + previewId_.substr(0, 22);
-    if (!LumaClient::instance().postMsg(JsonMessage("preview.open", {
-            {"instanceId", to_char(instanceId_)}, {"previewId", to_char(previewId_)},
-            {"channel", to_char(channel)}, {"source", static_cast<uint32_t>(nativeRenderSourceType())},
-            {"width", targetSize.width()}, {"height", targetSize.height()}}))) {
-        unregisterNativeWindow();
-    }
+    preview_->requests.callAsync(
+        u8"open", "preview.open",
+        {{"instanceId", to_char(instanceId_)}, {"previewId", to_char(previewId_)},
+         {"channel", to_char(channel)}, {"source", static_cast<uint32_t>(nativeRenderSourceType())},
+         {"width", targetSize.width()}, {"height", targetSize.height()}},
+        [this](CallResult result) {
+            if (!result.ok()) {
+                LogWarn << "Open preview request failed, status=" << static_cast<int>(result.status) << logEnd;
+                unregisterNativeWindow();
+                return;
+            }
+            const auto& body = result.body;
+            if (!body.contains("handles") || !body["handles"].is_array() || body["handles"].size() != kPreviewSlots) {
+                return;
+            }
+            const auto size = QSize(body.value("width", 0), body.value("height", 0));
+            if (size != nativePixelSize() || !preview_->queue.open(to_u8(body.value("channel", std::string()))) ||
+                preview_->queue.capacity() != kPreviewSlots || preview_->queue.frameBytes() != sizeof(PreviewFrame) ||
+                !preview_->open(nativeHandle_, size, body["handles"].get<std::array<uint32_t, kPreviewSlots>>(),
+                                body.value("adapter", uint64_t{0}))) {
+                LogError << "Open shared preview failed: " << previewId_ << logEnd;
+                unregisterNativeWindow();
+                return;
+            }
+            QPointer<GPURenderWidget> self(this);
+            const auto id = previewId_;
+            preview_->start([self, id](PreviewFrame frame) {
+                if (self) {
+                    QMetaObject::invokeMethod(self, [self, id, frame]() {
+                        if (self && self->previewId_ == id) {
+                            self->consumePreview(frame);
+                        }
+                    }, Qt::QueuedConnection);
+                }
+            });
+        });
 }
 
 void GPURenderWidget::unregisterNativeWindow() {
@@ -737,32 +767,7 @@ void GPURenderWidget::onPreviewMessage(const JsonMessage& message) {
     if (previewId_.empty() || body.value("previewId", std::string()) != to_char(previewId_)) {
         return;
     }
-    const auto method = message.value["method"].get<std::string>();
-    if (method == "preview.ready" && !preview_->consumer.joinable()) {
-        if (!body.contains("handles") || !body["handles"].is_array() || body["handles"].size() != kPreviewSlots) {
-            return;
-        }
-        const auto size = QSize(body.value("width", 0), body.value("height", 0));
-        if (size != nativePixelSize() || !preview_->queue.open(to_u8(body.value("channel", std::string()))) ||
-            preview_->queue.capacity() != kPreviewSlots || preview_->queue.frameBytes() != sizeof(PreviewFrame) ||
-            !preview_->open(nativeHandle_, size, body["handles"].get<std::array<uint32_t, kPreviewSlots>>(),
-                            body.value("adapter", uint64_t{0}))) {
-            LogError << "Open shared preview failed: " << previewId_ << logEnd;
-            unregisterNativeWindow();
-            return;
-        }
-        QPointer<GPURenderWidget> self(this);
-        const auto id = previewId_;
-        preview_->start([self, id](PreviewFrame frame) {
-            if (self) {
-                QMetaObject::invokeMethod(self, [self, id, frame]() {
-                    if (self && self->previewId_ == id) {
-                        self->consumePreview(frame);
-                    }
-                }, Qt::QueuedConnection);
-            }
-        });
-    } else if (method == "preview.failed") {
+    if (message.value["method"] == "preview.failed") {
         LogWarn << "Preview request failed: " << previewId_ << logEnd;
         unregisterNativeWindow();
     }
@@ -802,7 +807,7 @@ void GPURenderWidget::requestColorPick(int x, int y, std::function<void(uint32_t
     if (previewId_.empty()) {
         return;
     }
-    preview_->colorPickRequests.callAsync(
+    preview_->requests.callAsync(
         u8"color", "preview.pickColor",
         {{"instanceId", to_char(instanceId_)}, {"previewId", to_char(previewId_)}, {"x", x}, {"y", y}},
         [this, callback = std::move(callback)](CallResult result) {

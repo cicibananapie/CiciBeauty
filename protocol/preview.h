@@ -18,6 +18,8 @@ inline constexpr uint32_t kPreviewSlots = 3;
 
 // preview.autoKeying: request {instanceId}, asynchronous reply {rgba, similarity}.
 // preview.pickColor: request {instanceId, previewId, x, y}, asynchronous reply {rgba}.
+// preview.open: request {instanceId, previewId, channel, source, width, height},
+// asynchronous reply {channel, width, height, handles, adapter}.
 
 // One FIFO record leases the corresponding GPU texture until releaseRead().
 // No pixels or process-local pointers are stored in this queue.
