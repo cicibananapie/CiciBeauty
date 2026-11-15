@@ -167,7 +167,7 @@ void VideoClient::process(obs_source_frame& frame, uint32_t transform) {
     }
     if (spec != current_->spec) {
         std::span<uint8_t> record;
-        if (current_->input.acquireWrite(record, true) != SHMFrame::Result::Success) {
+        if (current_->input.acquireWrite(record) != SHMFrame::Result::Success) {
             return;
         }
         auto next = createPair(spec);

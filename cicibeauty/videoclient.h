@@ -12,8 +12,8 @@
 
 struct obs_source_frame;
 
-// OBS video-thread endpoint. Only channel switches wait for an input write slot;
-// ordinary frame submissions remain nonblocking. No synchronous IPC calls.
+// OBS video-thread endpoint. Frame submissions and channel switches never wait
+// for queue space; full queues defer a switch until a later frame. No synchronous IPC calls.
 class VideoClient {
 public:
     VideoClient() = default;
