@@ -3,6 +3,7 @@
 // See LICENSES/GPL-2.0-or-later.txt for the full license text.
 
 #include "settingconfig.h"
+#include "modelapp.h"
 #include "jsonutility.h"
 #include "protocol/account.h"
 #include "protocol/settings.h"
@@ -11,8 +12,12 @@
 
 using namespace cici::protocol;
 
-SettingConfig::SettingConfig() {
-    LumaClient::instance().addListener(
+SettingConfig::SettingConfig(GlobalModel* app) : app_(app) {
+    auto client = app_->luma();
+    if (!client) {
+        return;
+    }
+    client->addListener(
         this,
         [this](const JsonMessage& message) {
             const auto& method = message.value["method"].get_ref<const std::string&>();
@@ -52,14 +57,16 @@ SettingConfig::SettingConfig() {
         });
 }
 SettingConfig::~SettingConfig() {
-    LumaClient::instance().removeListener(this);
+    if (auto client = app_->luma()) {
+        client->removeListener(this);
+    }
 }
 
 void SettingConfig::requestSnapshot() {
     requests_.reset();
     ready_ = false;
     emit invalidated();
-    requests_.callAsync(u8"snapshot", "settings.getSnapshot", nlohmann::json::object(), [this](CallResult result) {
+    requests_.callAsync(app_, u8"snapshot", "settings.getSnapshot", nlohmann::json::object(), [this](CallResult result) {
         if (result.ok()) {
             updateSnapshot(result.body);
         } else {
@@ -110,7 +117,7 @@ void SettingConfig::refreshConfig(const std::u8string& id) {
     if (!ready_ || id.empty()) {
         return;
     }
-    requests_.callAsync(u8"config:" + id, "settings.getConfig", {{"uid", to_json(uid_)}, {"instanceId", to_json(id)}},
+    requests_.callAsync(app_, u8"config:" + id, "settings.getConfig", {{"uid", to_json(uid_)}, {"instanceId", to_json(id)}},
         [this, id, expected = config(id)](CallResult result) {
             if (result.ok() && result.body.contains("config") && result.body["config"].is_object()) {
                 applyConfig(id, result.body["config"], expected);
@@ -122,17 +129,18 @@ void SettingConfig::refreshConfig(const std::u8string& id) {
 
 bool SettingConfig::changeConfig(std::string_view method, const std::u8string& id, nlohmann::json body,
                                  nlohmann::json next, std::function<void(bool)> complete) {
-    if (!ready_ || uid_.empty() || id.empty() || !LumaClient::instance().connectionId()) {
+    auto client = app_->luma();
+    if (!ready_ || uid_.empty() || id.empty() || !client || !client->connectionId()) {
         return false;
     }
     configs_[id] = next;
     body["uid"] = to_json(uid_);
     body["instanceId"] = to_json(id);
-    requests_.callAsync(u8"config:" + id, method, body,
+    requests_.callAsync(app_, u8"config:" + id, method, body,
         [this, id, expected = std::move(next)](CallResult result) {
             if (result.ok() && result.body.contains("config") && result.body["config"].is_object()) {
                 applyConfig(id, result.body["config"], expected);
-            } else if (LumaClient::instance().connectionId()) {
+            } else if (auto client = app_->luma(); client && client->connectionId()) {
                 refreshConfig(id);
             }
         },
@@ -189,7 +197,7 @@ bool SettingConfig::setFavorite(std::u8string_view page, uint64_t id, bool favor
 }
 
 void SettingConfig::refreshFavorites() {
-    requests_.callAsync(u8"favorites", "settings.getFavorites", {{"uid", to_json(uid_)}}, [this](CallResult result) {
+    requests_.callAsync(app_, u8"favorites", "settings.getFavorites", {{"uid", to_json(uid_)}}, [this](CallResult result) {
         if (result.ok() && result.body.contains("favorites") && result.body["favorites"].is_object()) {
             const bool changed = favorites_ != result.body["favorites"];
             favorites_ = result.body["favorites"];
@@ -204,19 +212,20 @@ void SettingConfig::refreshFavorites() {
 
 bool SettingConfig::changeFavorites(std::string_view method, nlohmann::json body, nlohmann::json next,
                                     std::function<void(bool)> complete) {
-    if (!ready_ || uid_.empty() || !LumaClient::instance().connectionId()) {
+    auto client = app_->luma();
+    if (!ready_ || uid_.empty() || !client || !client->connectionId()) {
         return false;
     }
     favorites_ = next;
     body["uid"] = to_json(uid_);
-    requests_.callAsync(u8"favorites", method, body,
+    requests_.callAsync(app_, u8"favorites", method, body,
         [this, expected = std::move(next)](CallResult result) {
             if (result.ok() && result.body.contains("favorites") && result.body["favorites"].is_object()) {
                 favorites_ = result.body["favorites"];
                 if (favorites_ != expected) {
                     emit favoritesChanged();
                 }
-            } else if (LumaClient::instance().connectionId()) {
+            } else if (auto client = app_->luma(); client && client->connectionId()) {
                 refreshFavorites();
             }
         },

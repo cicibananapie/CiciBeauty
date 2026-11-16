@@ -7,11 +7,16 @@
 #include "cicibase.h"
 #include "log.h"
 #include "assetsmgr.h"
+#include "../modelapp.h"
 #include "../lumaclient.h"
 #include "../qstringconv.h"
 
-AssetsMgr::AssetsMgr() {
-    LumaClient::instance().addListener(
+AssetsMgr::AssetsMgr(GlobalModel* app) : app_(app) {
+    auto client = app_->luma();
+    if (!client) {
+        return;
+    }
+    client->addListener(
         this,
         [this](const cici::protocol::JsonMessage& message) {
             onMessage(message);
@@ -22,7 +27,9 @@ AssetsMgr::AssetsMgr() {
 }
 
 AssetsMgr::~AssetsMgr() {
-    LumaClient::instance().removeListener(this);
+    if (auto client = app_->luma()) {
+        client->removeListener(this);
+    }
 }
 
 EffectPackageStatus::EffectPackageStatus(EffectAsset package) : package_(std::move(package)) {
@@ -106,7 +113,12 @@ RemoteImageStatus* AssetsMgr::requestRemoteImage(const QString& url) {
 }
 
 void AssetsMgr::startRemoteImageRequest(const std::shared_ptr<RemoteImageStatus>& status) {
-    LumaClient::instance().callAsync(
+    auto client = app_->luma();
+    if (!client) {
+        status->setState(RemoteImageState::Failed);
+        return;
+    }
+    client->callAsync(
         status.get(), "assets.requestRemoteImage", {{"url", to_json(to_u8(status->url()))}},
         [status = status.get()](cici::protocol::CallResult result) {
             if (result.ok() && result.body.contains("localPath") && result.body["localPath"].is_string() &&
@@ -134,7 +146,12 @@ EffectPackageStatus* AssetsMgr::effectPackageStatus(const EffectAsset& package) 
     }
     if (status->state() == EffectPackageState::Unknown && !status->querying_) {
         status->querying_ = true;
-        LumaClient::instance().callAsync(
+        auto client = app_->luma();
+        if (!client) {
+            status->querying_ = false;
+            return status;
+        }
+        client->callAsync(
             status, "assets.queryEffectPackageStatus", {{"package", cici::protocol::assetJson(package)}},
             [status](cici::protocol::CallResult result) {
                 status->querying_ = false;
@@ -159,7 +176,8 @@ void AssetsMgr::downloadEffectPackage(const EffectAsset& package,
         status->state() == EffectPackageState::Ready || status->state() == EffectPackageState::Downloading) {
         return;
     }
-    const bool sent = LumaClient::instance().postMsg(cici::protocol::downloadEffectPackage(package, context));
+    auto client = app_->luma();
+    const bool sent = client && client->postMsg(cici::protocol::downloadEffectPackage(package, context));
     status->setState(sent ? EffectPackageState::Downloading : EffectPackageState::Failed);
 }
 

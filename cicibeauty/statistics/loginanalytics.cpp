@@ -41,8 +41,8 @@ const char8_t* actionName(LoginUiAction action) {
 
 } // namespace
 
-void reportLoginUiAction(LoginUiSurface surface, LoginUiAction action) {
-    CiciReport::reportEvent(KEVT_APP_LOGIN_UI_ACTION,
+void reportLoginUiAction(GlobalModel* app, LoginUiSurface surface, LoginUiAction action) {
+    CiciReport::reportEvent(app, KEVT_APP_LOGIN_UI_ACTION,
                             nlohmann::json::object({
                                 {"surface", to_json(std::u8string(surfaceName(surface)))},
                                 {"action", to_json(std::u8string(actionName(action)))},

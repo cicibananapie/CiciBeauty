@@ -4,6 +4,8 @@
 
 #pragma once
 
+class GlobalModel;
+
 enum class SubscriptionUiAction {
     PurchaseClick,
     PaymentCompletedClick,
@@ -23,7 +25,6 @@ enum class SubscriptionPurchaseIntent {
     Renew,
 };
 
-void reportSubscriptionUiAction(
-    SubscriptionUiAction action,
+void reportSubscriptionUiAction(GlobalModel* app, SubscriptionUiAction action,
     SubscriptionUiSource source,
     SubscriptionPurchaseIntent purchaseIntent = SubscriptionPurchaseIntent::None);

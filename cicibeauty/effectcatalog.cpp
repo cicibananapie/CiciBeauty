@@ -3,6 +3,7 @@
 // See LICENSES/GPL-2.0-or-later.txt for the full license text.
 
 #include "effectcatalog.h"
+#include "modelapp.h"
 
 #include <limits>
 #include <utility>
@@ -11,18 +12,24 @@
 #include "lumaclient.h"
 #include "protocol/catalog.h"
 
-EffectCatalog::EffectCatalog() {
+EffectCatalog::EffectCatalog(GlobalModel* app) : app_(app) {
     for (const auto* name : cici::protocol::kEffectCatalogNames) {
         catalogs_[name] = nlohmann::json::object();
     }
 }
 
 EffectCatalog::~EffectCatalog() {
-    LumaClient::instance().removeListener(this);
+    if (auto client = app_->luma()) {
+        client->removeListener(this);
+    }
 }
 
 void EffectCatalog::load() {
-    LumaClient::instance().addListener(
+    auto client = app_->luma();
+    if (!client) {
+        return;
+    }
+    client->addListener(
         this,
         {},
         [this]() {
@@ -30,7 +37,11 @@ void EffectCatalog::load() {
             LogWarn << "effect catalog service disconnected" << logEnd;
         },
         [this]() {
-            LumaClient::instance().callAsync(&requestOwner_, "catalog.getSnapshot", nlohmann::json::object(),
+            auto client = app_->luma();
+            if (!client) {
+                return;
+            }
+            client->callAsync(&requestOwner_, "catalog.getSnapshot", nlohmann::json::object(),
                 [this](cici::protocol::CallResult result) {
                     if (!result.ok()) {
                         LogError << "request effect catalog snapshot failed" << logEnd;

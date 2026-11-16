@@ -27,8 +27,8 @@ nlohmann::json baseProperties(GlobalModel* app, std::u8string_view action) {
     });
 }
 
-void report(const char8_t* eventId, nlohmann::json properties) {
-    CiciReport::reportEvent(eventId, properties);
+void report(GlobalModel* app, const char8_t* eventId, nlohmann::json properties) {
+    CiciReport::reportEvent(app, eventId, properties);
 }
 
 const char8_t* effectPickerEventId(EffectPickerPage page) {
@@ -48,19 +48,19 @@ const char8_t* effectPickerEventId(EffectPickerPage page) {
 void reportBasicFacePointsToggle(GlobalModel* app, bool enabled) {
     auto properties = baseProperties(app, u8"face_points_toggle");
     properties["enabled"] = enabled;
-    report(KEVT_APP_BASIC_SETTINGS_UI_ACTION, std::move(properties));
+    report(app, KEVT_APP_BASIC_SETTINGS_UI_ACTION, std::move(properties));
 }
 
 void reportFilterEnableToggle(GlobalModel* app, bool enabled) {
     auto properties = baseProperties(app, u8"enable_toggle");
     properties["enabled"] = enabled;
-    report(KEVT_APP_FILTER_UI_ACTION, std::move(properties));
+    report(app, KEVT_APP_FILTER_UI_ACTION, std::move(properties));
 }
 
 void reportFilterViewSelect(GlobalModel* app, std::u8string_view view) {
     auto properties = baseProperties(app, u8"view_select");
     properties["view"] = jsonText(view);
-    report(KEVT_APP_FILTER_UI_ACTION, std::move(properties));
+    report(app, KEVT_APP_FILTER_UI_ACTION, std::move(properties));
 }
 
 void reportFilterEffectSelect(GlobalModel* app,
@@ -73,7 +73,7 @@ void reportFilterEffectSelect(GlobalModel* app,
     properties["effect_name"] = jsonText(effectName);
     properties["selected"] = selected;
     properties["entry_point"] = jsonText(entryPoint);
-    report(KEVT_APP_FILTER_UI_ACTION, std::move(properties));
+    report(app, KEVT_APP_FILTER_UI_ACTION, std::move(properties));
 }
 
 void reportFilterFavoriteToggle(GlobalModel* app,
@@ -84,7 +84,7 @@ void reportFilterFavoriteToggle(GlobalModel* app,
     properties["effect_id"] = effectId;
     properties["effect_name"] = jsonText(effectName);
     properties["favorite"] = favorite;
-    report(KEVT_APP_FILTER_UI_ACTION, std::move(properties));
+    report(app, KEVT_APP_FILTER_UI_ACTION, std::move(properties));
 }
 
 void reportFilterStrengthInput(GlobalModel* app,
@@ -95,19 +95,19 @@ void reportFilterStrengthInput(GlobalModel* app,
     properties["effect_id"] = effectId;
     properties["effect_name"] = jsonText(effectName);
     properties["value"] = value;
-    report(KEVT_APP_FILTER_UI_ACTION, std::move(properties));
+    report(app, KEVT_APP_FILTER_UI_ACTION, std::move(properties));
 }
 
 void reportMakeupEnableToggle(GlobalModel* app, bool enabled) {
     auto properties = baseProperties(app, u8"enable_toggle");
     properties["enabled"] = enabled;
-    report(KEVT_APP_MAKEUP_UI_ACTION, std::move(properties));
+    report(app, KEVT_APP_MAKEUP_UI_ACTION, std::move(properties));
 }
 
 void reportMakeupTypeSelect(GlobalModel* app, std::u8string_view makeupType) {
     auto properties = baseProperties(app, u8"type_select");
     properties["makeup_type"] = jsonText(makeupType);
-    report(KEVT_APP_MAKEUP_UI_ACTION, std::move(properties));
+    report(app, KEVT_APP_MAKEUP_UI_ACTION, std::move(properties));
 }
 
 void reportMakeupEffectSelect(GlobalModel* app,
@@ -126,7 +126,7 @@ void reportMakeupEffectSelect(GlobalModel* app,
     properties["effect_id"] = effectId;
     properties["effect_name"] = jsonText(effectName);
     properties["selected"] = selected;
-    report(KEVT_APP_MAKEUP_UI_ACTION, std::move(properties));
+    report(app, KEVT_APP_MAKEUP_UI_ACTION, std::move(properties));
 }
 
 void reportMakeupParamInput(GlobalModel* app,
@@ -147,7 +147,7 @@ void reportMakeupParamInput(GlobalModel* app,
     properties["effect_name"] = jsonText(effectName);
     properties["param"] = jsonText(param);
     properties["value"] = value;
-    report(KEVT_APP_MAKEUP_UI_ACTION, std::move(properties));
+    report(app, KEVT_APP_MAKEUP_UI_ACTION, std::move(properties));
 }
 
 void reportMakeupStrengthInput(GlobalModel* app,
@@ -163,7 +163,7 @@ void reportMakeupStrengthInput(GlobalModel* app,
     properties["effect_id"] = effectId;
     properties["effect_name"] = jsonText(effectName);
     properties["value"] = value;
-    report(KEVT_APP_MAKEUP_UI_ACTION, std::move(properties));
+    report(app, KEVT_APP_MAKEUP_UI_ACTION, std::move(properties));
 }
 
 void reportEffectPickerSoundToggle(GlobalModel* app,
@@ -171,7 +171,7 @@ void reportEffectPickerSoundToggle(GlobalModel* app,
                                    bool enabled) {
     auto properties = baseProperties(app, u8"sound_toggle");
     properties["enabled"] = enabled;
-    report(effectPickerEventId(page), std::move(properties));
+    report(app, effectPickerEventId(page), std::move(properties));
 }
 
 void reportEffectPickerCategorySelect(GlobalModel* app,
@@ -181,7 +181,7 @@ void reportEffectPickerCategorySelect(GlobalModel* app,
     auto properties = baseProperties(app, u8"category_select");
     properties["category_id"] = categoryId;
     properties["category_name"] = jsonText(categoryName);
-    report(effectPickerEventId(page), std::move(properties));
+    report(app, effectPickerEventId(page), std::move(properties));
 }
 
 void reportEffectPickerEffectSelect(GlobalModel* app,
@@ -205,7 +205,7 @@ void reportEffectPickerEffectSelect(GlobalModel* app,
     properties["effect_name"] = jsonText(effectName);
     properties["selected"] = selected;
     properties["entry_point"] = jsonText(entryPoint);
-    report(effectPickerEventId(page), std::move(properties));
+    report(app, effectPickerEventId(page), std::move(properties));
 }
 
 void reportEffectPickerFavoriteToggle(GlobalModel* app,
@@ -217,13 +217,13 @@ void reportEffectPickerFavoriteToggle(GlobalModel* app,
     properties["effect_id"] = effectId;
     properties["effect_name"] = jsonText(effectName);
     properties["favorite"] = favorite;
-    report(effectPickerEventId(page), std::move(properties));
+    report(app, effectPickerEventId(page), std::move(properties));
 }
 
 void reportBeautyEnhancementEnableToggle(GlobalModel* app, bool enabled) {
     auto properties = baseProperties(app, u8"enable_toggle");
     properties["enabled"] = enabled;
-    report(KEVT_APP_BEAUTY_ENHANCEMENT_UI_ACTION, std::move(properties));
+    report(app, KEVT_APP_BEAUTY_ENHANCEMENT_UI_ACTION, std::move(properties));
 }
 
 void reportBeautyEnhancementSolutionAction(GlobalModel* app,
@@ -233,7 +233,7 @@ void reportBeautyEnhancementSolutionAction(GlobalModel* app,
     auto properties = baseProperties(app, action);
     properties["solution_id"] = solutionId;
     properties["solution_name"] = jsonText(solutionName);
-    report(KEVT_APP_BEAUTY_ENHANCEMENT_UI_ACTION, std::move(properties));
+    report(app, KEVT_APP_BEAUTY_ENHANCEMENT_UI_ACTION, std::move(properties));
 }
 
 void reportBeautyEnhancementFeatureToggle(GlobalModel* app,
@@ -246,7 +246,7 @@ void reportBeautyEnhancementFeatureToggle(GlobalModel* app,
     properties["solution_name"] = jsonText(solutionName);
     properties["feature"] = jsonText(feature);
     properties["enabled"] = enabled;
-    report(KEVT_APP_BEAUTY_ENHANCEMENT_UI_ACTION, std::move(properties));
+    report(app, KEVT_APP_BEAUTY_ENHANCEMENT_UI_ACTION, std::move(properties));
 }
 
 void reportBeautyEnhancementSectionSelect(GlobalModel* app,
@@ -257,7 +257,7 @@ void reportBeautyEnhancementSectionSelect(GlobalModel* app,
     properties["solution_id"] = solutionId;
     properties["solution_name"] = jsonText(solutionName);
     properties["section"] = jsonText(section);
-    report(KEVT_APP_BEAUTY_ENHANCEMENT_UI_ACTION, std::move(properties));
+    report(app, KEVT_APP_BEAUTY_ENHANCEMENT_UI_ACTION, std::move(properties));
 }
 
 void reportBeautyEnhancementParamInput(GlobalModel* app,
@@ -270,13 +270,13 @@ void reportBeautyEnhancementParamInput(GlobalModel* app,
     properties["solution_name"] = jsonText(solutionName);
     properties["param"] = jsonText(param);
     properties["value"] = value;
-    report(KEVT_APP_BEAUTY_ENHANCEMENT_UI_ACTION, std::move(properties));
+    report(app, KEVT_APP_BEAUTY_ENHANCEMENT_UI_ACTION, std::move(properties));
 }
 
 void reportBodyShapingEnableToggle(GlobalModel* app, bool enabled) {
     auto properties = baseProperties(app, u8"enable_toggle");
     properties["enabled"] = enabled;
-    report(KEVT_APP_BODY_SHAPING_UI_ACTION, std::move(properties));
+    report(app, KEVT_APP_BODY_SHAPING_UI_ACTION, std::move(properties));
 }
 
 void reportBodyShapingSolutionAction(GlobalModel* app,
@@ -286,7 +286,7 @@ void reportBodyShapingSolutionAction(GlobalModel* app,
     auto properties = baseProperties(app, action);
     properties["solution_id"] = solutionId;
     properties["solution_name"] = jsonText(solutionName);
-    report(KEVT_APP_BODY_SHAPING_UI_ACTION, std::move(properties));
+    report(app, KEVT_APP_BODY_SHAPING_UI_ACTION, std::move(properties));
 }
 
 void reportBodyShapingLegModeSelect(GlobalModel* app,
@@ -297,7 +297,7 @@ void reportBodyShapingLegModeSelect(GlobalModel* app,
     properties["solution_id"] = solutionId;
     properties["solution_name"] = jsonText(solutionName);
     properties["mode"] = jsonText(mode);
-    report(KEVT_APP_BODY_SHAPING_UI_ACTION, std::move(properties));
+    report(app, KEVT_APP_BODY_SHAPING_UI_ACTION, std::move(properties));
 }
 
 void reportBodyShapingParamInput(GlobalModel* app,
@@ -310,7 +310,7 @@ void reportBodyShapingParamInput(GlobalModel* app,
     properties["solution_name"] = jsonText(solutionName);
     properties["param"] = jsonText(param);
     properties["value"] = value;
-    report(KEVT_APP_BODY_SHAPING_UI_ACTION, std::move(properties));
+    report(app, KEVT_APP_BODY_SHAPING_UI_ACTION, std::move(properties));
 }
 
 void reportBodyShapingManualLegAction(GlobalModel* app,
@@ -322,12 +322,12 @@ void reportBodyShapingManualLegAction(GlobalModel* app,
     auto properties = baseProperties(app, fullAction);
     properties["solution_id"] = solutionId;
     properties["solution_name"] = jsonText(solutionName);
-    report(KEVT_APP_BODY_SHAPING_UI_ACTION, std::move(properties));
+    report(app, KEVT_APP_BODY_SHAPING_UI_ACTION, std::move(properties));
 }
 
 void reportKeyingAction(GlobalModel* app, std::u8string_view action) {
     auto properties = baseProperties(app, action);
-    report(KEVT_APP_KEYING_UI_ACTION, std::move(properties));
+    report(app, KEVT_APP_KEYING_UI_ACTION, std::move(properties));
 }
 
 void reportKeyingToggle(GlobalModel* app,
@@ -335,13 +335,13 @@ void reportKeyingToggle(GlobalModel* app,
                         bool enabled) {
     auto properties = baseProperties(app, action);
     properties["enabled"] = enabled;
-    report(KEVT_APP_KEYING_UI_ACTION, std::move(properties));
+    report(app, KEVT_APP_KEYING_UI_ACTION, std::move(properties));
 }
 
 void reportKeyingModeSelect(GlobalModel* app, std::u8string_view mode) {
     auto properties = baseProperties(app, u8"mode_select");
     properties["mode"] = jsonText(mode);
-    report(KEVT_APP_KEYING_UI_ACTION, std::move(properties));
+    report(app, KEVT_APP_KEYING_UI_ACTION, std::move(properties));
 }
 
 void reportKeyingTemplateAction(GlobalModel* app,
@@ -349,20 +349,20 @@ void reportKeyingTemplateAction(GlobalModel* app,
                                 std::u8string_view templateName) {
     auto properties = baseProperties(app, action);
     properties["template"] = jsonText(templateName);
-    report(KEVT_APP_KEYING_UI_ACTION, std::move(properties));
+    report(app, KEVT_APP_KEYING_UI_ACTION, std::move(properties));
 }
 
 void reportKeyingZoneShapeSelect(GlobalModel* app, std::u8string_view shape) {
     auto properties = baseProperties(app, u8"no_keying_zone_shape_select");
     properties["shape"] = jsonText(shape);
-    report(KEVT_APP_KEYING_UI_ACTION, std::move(properties));
+    report(app, KEVT_APP_KEYING_UI_ACTION, std::move(properties));
 }
 
 void reportKeyingBackgroundAssetSelect(GlobalModel* app,
                                        std::u8string_view assetType) {
     auto properties = baseProperties(app, u8"background_asset_select");
     properties["asset_type"] = jsonText(assetType);
-    report(KEVT_APP_KEYING_UI_ACTION, std::move(properties));
+    report(app, KEVT_APP_KEYING_UI_ACTION, std::move(properties));
 }
 
 void reportKeyingTemplateParamInput(GlobalModel* app,
@@ -373,7 +373,7 @@ void reportKeyingTemplateParamInput(GlobalModel* app,
     properties["template"] = jsonText(templateName);
     properties["param"] = jsonText(param);
     properties["value"] = value;
-    report(KEVT_APP_KEYING_UI_ACTION, std::move(properties));
+    report(app, KEVT_APP_KEYING_UI_ACTION, std::move(properties));
 }
 
 void reportKeyingTemplateToggle(GlobalModel* app,
@@ -384,13 +384,13 @@ void reportKeyingTemplateToggle(GlobalModel* app,
     properties["template"] = jsonText(templateName);
     properties["feature"] = jsonText(feature);
     properties["enabled"] = enabled;
-    report(KEVT_APP_KEYING_UI_ACTION, std::move(properties));
+    report(app, KEVT_APP_KEYING_UI_ACTION, std::move(properties));
 }
 
 void reportLensViewSelect(GlobalModel* app, std::u8string_view view) {
     auto properties = baseProperties(app, u8"view_select");
     properties["view"] = jsonText(view);
-    report(KEVT_APP_LENS_EFFECT_UI_ACTION, std::move(properties));
+    report(app, KEVT_APP_LENS_EFFECT_UI_ACTION, std::move(properties));
 }
 
 void reportLensToggle(GlobalModel* app,
@@ -398,7 +398,7 @@ void reportLensToggle(GlobalModel* app,
                       bool enabled) {
     auto properties = baseProperties(app, action);
     properties["enabled"] = enabled;
-    report(KEVT_APP_LENS_EFFECT_UI_ACTION, std::move(properties));
+    report(app, KEVT_APP_LENS_EFFECT_UI_ACTION, std::move(properties));
 }
 
 void reportLensEffectSelect(GlobalModel* app,
@@ -413,7 +413,7 @@ void reportLensEffectSelect(GlobalModel* app,
     properties["effect_name"] = jsonText(effectName);
     properties["selected"] = selected;
     properties["entry_point"] = jsonText(entryPoint);
-    report(KEVT_APP_LENS_EFFECT_UI_ACTION, std::move(properties));
+    report(app, KEVT_APP_LENS_EFFECT_UI_ACTION, std::move(properties));
 }
 
 void reportLensFavoriteToggle(GlobalModel* app,
@@ -425,7 +425,7 @@ void reportLensFavoriteToggle(GlobalModel* app,
     properties["effect_id"] = effectId;
     properties["effect_name"] = jsonText(effectName);
     properties["favorite"] = favorite;
-    report(KEVT_APP_LENS_EFFECT_UI_ACTION, std::move(properties));
+    report(app, KEVT_APP_LENS_EFFECT_UI_ACTION, std::move(properties));
 }
 
 void reportLensCategorySelect(GlobalModel* app,
@@ -435,7 +435,7 @@ void reportLensCategorySelect(GlobalModel* app,
     properties["section"] = jsonText(u8"shot_atmosphere");
     properties["category_id"] = categoryId;
     properties["category_name"] = jsonText(categoryName);
-    report(KEVT_APP_LENS_EFFECT_UI_ACTION, std::move(properties));
+    report(app, KEVT_APP_LENS_EFFECT_UI_ACTION, std::move(properties));
 }
 
 void reportLensParamInput(GlobalModel* app,
@@ -450,5 +450,5 @@ void reportLensParamInput(GlobalModel* app,
     properties["effect_name"] = jsonText(effectName);
     properties["param"] = jsonText(param);
     properties["value"] = value;
-    report(KEVT_APP_LENS_EFFECT_UI_ACTION, std::move(properties));
+    report(app, KEVT_APP_LENS_EFFECT_UI_ACTION, std::move(properties));
 }

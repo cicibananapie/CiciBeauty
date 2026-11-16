@@ -23,6 +23,8 @@ class QListWidget;
 class QPushButton;
 class QTextEdit;
 
+class GlobalModel;
+
 class FeedbackDialog : public QDialog {
     Q_OBJECT
 
@@ -38,8 +40,8 @@ private:
     };
 
 public:
-    explicit FeedbackDialog(const QString& email, QWidget* parent = nullptr);
-    FeedbackDialog(const QString& email, QWidget* parent, ClientFactory clientFactory,
+    explicit FeedbackDialog(GlobalModel* app, const QString& email, QWidget* parent = nullptr);
+    FeedbackDialog(GlobalModel* app, const QString& email, QWidget* parent, ClientFactory clientFactory,
                    ScreenshotPicker screenshotPicker = {});
 
 protected:
@@ -59,6 +61,7 @@ private:
     void updateControls();
 
 private:
+    GlobalModel* app_;
     ClientFactory clientFactory_;
     ScreenshotPicker screenshotPicker_;
     QPointer<FeedbackClient> client_;

@@ -4,6 +4,8 @@
 
 #pragma once
 
+class GlobalModel;
+
 enum class LoginUiSurface {
     Modal,
     SettingsOverlay,
@@ -15,4 +17,4 @@ enum class LoginUiAction {
     Close,
 };
 
-void reportLoginUiAction(LoginUiSurface surface, LoginUiAction action);
+void reportLoginUiAction(GlobalModel* app, LoginUiSurface surface, LoginUiAction action);

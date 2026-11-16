@@ -38,7 +38,7 @@ signals:
 // UI-thread cache. Storage, normalization and effect execution belong to luma.
 class SettingConfig final : public ISettingConfig {
 public:
-  SettingConfig();
+  explicit SettingConfig(GlobalModel* app);
   ~SettingConfig() override;
   bool isReady() const override {
       return ready_;
@@ -71,6 +71,7 @@ private:
   nlohmann::json defaults_ = {{"version", 1}};
   nlohmann::json favorites_ = {{"version", 1}, {"pages", nlohmann::json::object()}};
   std::map<std::u8string, nlohmann::json> configs_;
+    GlobalModel* app_;
   LumaRequestScope requests_;
   bool ready_ = false;
 };

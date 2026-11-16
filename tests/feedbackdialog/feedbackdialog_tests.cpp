@@ -59,7 +59,7 @@ std::vector<ReportedFeedbackSubmitResult> &reportedFeedbackSubmitResults() {
 	return results;
 }
 
-void reportFeedbackUiAction(FeedbackUiAction action) {
+void reportFeedbackUiAction(GlobalModel*, FeedbackUiAction action) {
 	std::u8string name;
 	switch (action) {
 	case FeedbackUiAction::AddScreenshotClick:
@@ -81,16 +81,16 @@ void reportFeedbackUiAction(FeedbackUiAction action) {
 	reportedFeedbackUiActions().push_back({std::move(name), std::nullopt});
 }
 
-void reportFeedbackIncludeLogsToggle(bool enabled) {
+void reportFeedbackIncludeLogsToggle(GlobalModel*, bool enabled) {
 	reportedFeedbackUiActions().push_back({u8"include_logs_toggle", enabled});
 }
 
-std::u8string reportFeedbackSubmitUiAction(bool, uint32_t, bool) {
+std::u8string reportFeedbackSubmitUiAction(GlobalModel*, bool, uint32_t, bool) {
 	reportedFeedbackUiActions().push_back({u8"submit_click", std::nullopt});
 	return u8"feedback-attempt";
 }
 
-void reportFeedbackSubmitResult(std::u8string_view attemptId,
+void reportFeedbackSubmitResult(GlobalModel*, std::u8string_view attemptId,
 				FeedbackSubmitResult result,
 				std::u8string_view failureReason,
 				std::u8string_view feedbackId,
@@ -133,7 +133,7 @@ template<typename T> T *requireChild(QObject *parent, const char *objectName) {
 
 class FakeFeedbackClient final : public FeedbackClient {
 public:
-	explicit FakeFeedbackClient(QObject *parent) : FeedbackClient(parent) {}
+	explicit FakeFeedbackClient(QObject *parent) : FeedbackClient(nullptr, parent) {}
 
 	void start(const QString &description, const QString &email, const QStringList &screenshots,
 		   bool includeLogs) override {
@@ -163,7 +163,7 @@ public:
 struct DialogHarness {
 	DialogHarness()
 		: dialog_(
-			  "saved@example.com", &parent_,
+			  nullptr, "saved@example.com", &parent_,
 			  [this](QObject *owner) {
 				  auto *client = new FakeFeedbackClient(owner);
 				  clients_.push_back(client);

@@ -5,22 +5,26 @@
 #include "loginlogic.h"
 
 #include "../lumaclient.h"
+#include "../modelapp.h"
 #include "log.h"
 
 using namespace cici::protocol;
 
-namespace {
-bool post(std::string_view method) {
-    if (LumaClient::instance().postMsg(JsonMessage(method, nlohmann::json::object()))) {
+bool LoginLogic::post(std::string_view method) {
+    auto client = app_->luma();
+    if (client && client->postMsg(JsonMessage(method, nlohmann::json::object()))) {
         return true;
     }
     LogWarn << "send login operation failed: " << method << logEnd;
     return false;
 }
-}
 
-LoginLogic::LoginLogic(QObject* parent) : QObject(parent) {
-    LumaClient::instance().addListener(
+LoginLogic::LoginLogic(GlobalModel* app, QObject* parent) : QObject(parent), app_(app) {
+    auto client = app_->luma();
+    if (!client) {
+        return;
+    }
+    client->addListener(
         this,
         [this](const JsonMessage& message) {
             const auto& method = message.value["method"].get_ref<const std::string&>();
@@ -67,7 +71,9 @@ LoginLogic::LoginLogic(QObject* parent) : QObject(parent) {
 }
 
 LoginLogic::~LoginLogic() {
-    LumaClient::instance().removeListener(this);
+    if (auto client = app_->luma()) {
+        client->removeListener(this);
+    }
 }
 
 void LoginLogic::autoLogin() {

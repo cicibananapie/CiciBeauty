@@ -166,17 +166,15 @@ SubscriptionTipWidget::SubscriptionTipWidget(GlobalModel* app, QWidget* parent)
                      this,
                      &SubscriptionTipWidget::updateSubscriptionState);
     QObject::connect(renewButton, &QPushButton::clicked,
-                     this, []() {
-                         reportSubscriptionUiAction(
-                             SubscriptionUiAction::PurchaseClick,
+                     this, [this]() {
+                         reportSubscriptionUiAction(app_, SubscriptionUiAction::PurchaseClick,
                              SubscriptionUiSource::ExpirationTip,
                              SubscriptionPurchaseIntent::Renew);
-                         SubscriptionWidget::openSubscriptionPurchasePage();
+                         app_->subscriptionController()->openPurchasePage();
                      });
     QObject::connect(closeButton, &QPushButton::clicked,
                      this, [this]() {
-                         reportSubscriptionUiAction(
-                             SubscriptionUiAction::TipCloseClick,
+                         reportSubscriptionUiAction(app_, SubscriptionUiAction::TipCloseClick,
                              SubscriptionUiSource::ExpirationTip);
                          hide();
                      });
@@ -413,26 +411,22 @@ SubscriptionWidget::SubscriptionWidget(GlobalModel* app, QWidget* parent)
     updateSubscriptionState();
 }
 
-void SubscriptionWidget::openSubscriptionPurchasePage() {
-    SubscriptionController::openPurchasePage();
-}
-
 void SubscriptionWidget::beginPurchase() {
     const SubscriptionPurchaseIntent purchaseIntent =
         app_->subscriptionController()->subscriptionType() == Expired
             ? SubscriptionPurchaseIntent::Renew
             : SubscriptionPurchaseIntent::Subscribe;
-    reportSubscriptionUiAction(SubscriptionUiAction::PurchaseClick,
+    reportSubscriptionUiAction(app_, SubscriptionUiAction::PurchaseClick,
                                SubscriptionUiSource::AccessOverlay,
                                purchaseIntent);
-    openSubscriptionPurchasePage();
+    app_->subscriptionController()->openPurchasePage();
     showPage(paymentPendingPage_, "PaymentPending", "purchase_requested");
     startPaymentPolling(kPaymentPendingTimeoutMs, "purchase_requested");
     emit purchaseRequested();
 }
 
 void SubscriptionWidget::confirmPaymentCompleted() {
-    reportSubscriptionUiAction(SubscriptionUiAction::PaymentCompletedClick,
+    reportSubscriptionUiAction(app_, SubscriptionUiAction::PaymentCompletedClick,
                                SubscriptionUiSource::AccessOverlay);
     showPage(checkingPage_, "Checking", "user_reported_payment_completed");
     startPaymentPolling(kPaymentCheckingTimeoutMs,
@@ -442,7 +436,7 @@ void SubscriptionWidget::confirmPaymentCompleted() {
 }
 
 void SubscriptionWidget::retryChecking() {
-    reportSubscriptionUiAction(SubscriptionUiAction::CheckRetryClick,
+    reportSubscriptionUiAction(app_, SubscriptionUiAction::CheckRetryClick,
                                SubscriptionUiSource::AccessOverlay);
     showPage(checkingPage_, "Checking", "retry_requested");
     startPaymentPolling(kPaymentCheckingTimeoutMs, "retry_requested");
@@ -450,7 +444,7 @@ void SubscriptionWidget::retryChecking() {
 }
 
 void SubscriptionWidget::backToPaymentPending() {
-    reportSubscriptionUiAction(SubscriptionUiAction::CheckBackClick,
+    reportSubscriptionUiAction(app_, SubscriptionUiAction::CheckBackClick,
                                SubscriptionUiSource::AccessOverlay);
     showPage(paymentPendingPage_, "PaymentPending", "back_requested");
     startPaymentPolling(kPaymentPendingTimeoutMs, "back_requested");

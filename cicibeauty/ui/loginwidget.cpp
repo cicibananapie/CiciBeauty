@@ -189,7 +189,7 @@ void LoginWidget::login() {
         return;
     }
 
-    reportLoginUiAction(surface_, LoginUiAction::SignInClick);
+    reportLoginUiAction(app_, surface_, LoginUiAction::SignInClick);
     statusLabel_->setText(tr("Waiting for sign-in in your browser..."));
     loginBtn_->setText(tr("Signing in..."));
     loginBtn_->setEnabled(false);
@@ -219,12 +219,12 @@ void LoginWidget::onLoginFailed(LoginFailureReason reason, const std::u8string& 
 
 void LoginWidget::showEvent(QShowEvent* event) {
     QWidget::showEvent(event);
-    reportLoginUiAction(surface_, LoginUiAction::Show);
+    reportLoginUiAction(app_, surface_, LoginUiAction::Show);
 }
 
 void LoginWidget::closeEvent(QCloseEvent* event) {
     if (event->spontaneous()) {
-        reportLoginUiAction(surface_, LoginUiAction::Close);
+        reportLoginUiAction(app_, surface_, LoginUiAction::Close);
     }
     QWidget::closeEvent(event);
 }

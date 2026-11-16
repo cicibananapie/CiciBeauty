@@ -6,6 +6,7 @@
 #include <stdint.h>
 
 #include <memory>
+#include <mutex>
 #include <set>
 #include <string>
 #include <string_view>
@@ -25,6 +26,7 @@ class EffectCatalog;
 class EffectPackageStatus;
 class LoginLogic;
 class LoginWidget;
+class LumaClient;
 class ISettingConfig;
 class SettingController;
 class SourceListCiciStatusController;
@@ -54,6 +56,7 @@ public:
 public:
 
     AssetsMgr* assets() const override;
+    LumaAccess luma() const override;
     UpdateClient* updater() const;
     LoginLogic* loginLogic() const override;
     ISettingConfig* settingConfig() const override;
@@ -136,6 +139,8 @@ private:    //GlobalModel
     void unregisterFilterModelChangeObserver(IFilterModelChangeObserver *observer) override;
     
 private:
+    mutable std::recursive_mutex lumaMutex_;
+    std::unique_ptr<LumaClient> luma_;
     QPointer<QWidget> dockContainer_;
     QPointer<SettingController> settingWidget_;
     std::unique_ptr<ContextBarEntryController> contextBarEntry_;

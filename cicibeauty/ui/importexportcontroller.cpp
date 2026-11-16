@@ -247,15 +247,14 @@ void ImportExportController::switchLanguage() {
 
 void ImportExportController::onImportBtnClicked() {
     constexpr auto action = ConfigTransferUiAction::ImportClick;
-    const std::u8string attemptId = reportConfigTransferUiAction(action);
+    const std::u8string attemptId = reportConfigTransferUiAction(app_, action);
     const auto startedAt = std::chrono::steady_clock::now();
-    auto finish = [action, attemptId, startedAt](ConfigTransferResult result,
+    auto finish = [app_ = app_, action, attemptId, startedAt](ConfigTransferResult result,
                       ConfigTransferFailureReason failureReason) {
         const auto durationMs = static_cast<uint64_t>(
             std::chrono::duration_cast<std::chrono::milliseconds>(
                 std::chrono::steady_clock::now() - startedAt).count());
-        reportConfigTransferResult(
-            action, attemptId, result, failureReason, durationMs);
+        reportConfigTransferResult(app_, action, attemptId, result, failureReason, durationMs);
     };
 
     const SettingTarget target = setting_->activeSettingTarget();
@@ -355,15 +354,14 @@ void ImportExportController::onImportBtnClicked() {
 
 void ImportExportController::onExportBtnClicked() {
     constexpr auto action = ConfigTransferUiAction::ExportClick;
-    const std::u8string attemptId = reportConfigTransferUiAction(action);
+    const std::u8string attemptId = reportConfigTransferUiAction(app_, action);
     const auto startedAt = std::chrono::steady_clock::now();
     auto finish = [&](ConfigTransferResult result,
                       ConfigTransferFailureReason failureReason) {
         const auto durationMs = static_cast<uint64_t>(
             std::chrono::duration_cast<std::chrono::milliseconds>(
                 std::chrono::steady_clock::now() - startedAt).count());
-        reportConfigTransferResult(
-            action, attemptId, result, failureReason, durationMs);
+        reportConfigTransferResult(app_, action, attemptId, result, failureReason, durationMs);
     };
 
     const SettingTarget target = setting_->activeSettingTarget();

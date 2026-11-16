@@ -13,11 +13,11 @@
 class SubscriptionController : public QObject {
     Q_OBJECT
 public:
-    SubscriptionController();
+    explicit SubscriptionController(GlobalModel* app);
     ~SubscriptionController() override;
 
     void refresh();
-    static void openPurchasePage();
+    void openPurchasePage();
     const std::u8string& uid() const {
         return status_.uid;
     }
@@ -40,6 +40,7 @@ signals:
     void aboutToExpire(SubscriptionType curType, uint32_t howManyDaysBeforeExpire);
 
 private:
+    GlobalModel* app_;
   LumaRequestScope requests_;
   SubscriptionStatus status_;
 };

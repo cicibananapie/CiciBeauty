@@ -12,6 +12,7 @@
 #include "cicibase.h"
 #include "log.h"
 #include "misc.h"
+#include "modelapp.h"
 #include "uuid.h"
 
 namespace {
@@ -44,11 +45,6 @@ private:
 
 } // namespace
 
-LumaClient& LumaClient::instance() {
-    static LumaClient client;
-    return client;
-}
-
 LumaClient::~LumaClient() {
     stop();
 }
@@ -58,7 +54,7 @@ bool LumaClient::start() {
     const auto key = CiciUUID::generate();
     {
         std::lock_guard<std::mutex> guard(stateMtx_);
-        if (ipc_) {
+        if (state_ != State::NotStarted) {
             LogWarn << "ciciluma IPC has already been started" << logEnd;
             return false;
         }
@@ -76,7 +72,7 @@ bool LumaClient::start() {
                 onTransportClosed();
             });
         ipc_->start();
-        active_ = true;
+        state_ = State::Starting;
         sessionId_ = key;
     }
 
@@ -103,10 +99,17 @@ bool LumaClient::start() {
 
 void LumaClient::stop() {
     makesureMainThread();
+    {
+        std::lock_guard guard(stateMtx_);
+        if (state_ == State::Stopping || state_ == State::Stopped) {
+            return;
+        }
+        state_ = State::Stopping;
+        pending_.clear();
+    }
     if (connectionTimer_) {
         connectionTimer_->stop();
     }
-    onTransportClosed();
     if (ipc_) {
         ipc_->removeCallback(this);
         ipc_->stop();
@@ -123,26 +126,31 @@ void LumaClient::stop() {
             listener.closed();
         }
     }
-    // Keep IPC alive for main-thread callbacks already queued by SimpleIPC.
+    listeners_.clear();
+    {
+        std::lock_guard guard(stateMtx_);
+        state_ = State::Stopped;
+    }
+    if (auto notify = std::exchange(closed, {})) {
+        notify();
+    }
 }
 
 bool LumaClient::postMsg(const IPCMessage& message) {
-    IPCServer* ipc;
     {
         std::lock_guard<std::mutex> guard(stateMtx_);
-        if (!active_) {
+        if (state_ != State::Starting && state_ != State::Connected) {
             LogWarn << "ciciluma IPC is unavailable" << logEnd;
             return false;
         }
-        if (!connected_) {
+        if (state_ == State::Starting) {
             BinaryPack data;
             message.toBinary(data);
             pending_.push_back(std::move(data));
             return true;
         }
-        ipc = ipc_.get();
     }
-    const bool sent = ipc->postMsg(message);
+    const bool sent = ipc_->postMsg(message);
     if (!sent) {
         LogWarn << "send ciciluma IPC message failed" << logEnd;
     }
@@ -154,18 +162,26 @@ void LumaClient::callAsync(QObject* owner, std::string_view method, const nlohma
     makesureMainThread();
     using namespace cici::protocol;
     assert(owner && callback);
+    State state;
     uint64_t requestId;
-    CallStatus status = CallStatus::Success;
     {
-        std::lock_guard<std::mutex> lock(stateMtx_);
+        std::lock_guard lock(stateMtx_);
+        state = state_;
         requestId = ++nextRequestId_;
-        if (method.empty() || !body.is_object()) {
-            status = CallStatus::InvalidRequest;
-        } else if (!active_) {
-            status = CallStatus::NotConnected;
-        }
     }
-    const auto destroyed = QObject::connect(owner, &QObject::destroyed, [this, requestId]() {
+    if (state == State::Stopping || state == State::Stopped) {
+        QMetaObject::invokeMethod(owner, [callback = std::move(callback)]() {
+            callback({CallStatus::NotConnected});
+        }, Qt::QueuedConnection);
+        return;
+    }
+    CallStatus status = CallStatus::Success;
+    if (method.empty() || !body.is_object()) {
+        status = CallStatus::InvalidRequest;
+    } else if (state != State::Starting && state != State::Connected) {
+        status = CallStatus::NotConnected;
+    }
+    const auto destroyed = QObject::connect(owner, &QObject::destroyed, this, [this, requestId]() {
         asyncCalls_.erase(requestId);
     });
     auto complete = [this, requestId, destroyed, callback = std::move(callback)](CallResult result) {
@@ -178,7 +194,7 @@ void LumaClient::callAsync(QObject* owner, std::string_view method, const nlohma
         status = CallStatus::Closed;
     }
     if (status != CallStatus::Success) {
-        QMetaObject::invokeMethod(owner, [this, requestId, status]() {
+        QMetaObject::invokeMethod(this, [this, requestId, status]() {
             const auto it = asyncCalls_.find(requestId);
             if (it != asyncCalls_.end()) {
                 auto complete = it->second;
@@ -190,21 +206,22 @@ void LumaClient::callAsync(QObject* owner, std::string_view method, const nlohma
 
 void LumaClient::onTransportClosed() {
     std::lock_guard<std::mutex> lock(stateMtx_);
-    active_ = false;
-    connected_ = false;
+    if (state_ == State::Starting || state_ == State::Connected) {
+        state_ = State::Disconnected;
+    }
     pending_.clear();
 }
 
 uint64_t LumaClient::connectionId() {
     std::lock_guard guard(stateMtx_);
-    return connected_ ? connectionId_ : 0;
+    return state_ == State::Connected ? connectionId_ : 0;
 }
 
 void LumaClient::onConnected() {
     connectionTimer_->stop();
     {
         std::lock_guard<std::mutex> guard(stateMtx_);
-        if (!active_) {
+        if (state_ != State::Starting && state_ != State::Connected) {
             return;
         }
         LogInfo << "ciciluma IPC connected" << logEnd;
@@ -214,7 +231,7 @@ void LumaClient::onConnected() {
             }
         }
         pending_.clear();
-        connected_ = true;
+        state_ = State::Connected;
         ++connectionId_;
     }
     const auto listeners = listeners_;
@@ -233,7 +250,7 @@ void LumaClient::onClosed() {
 void LumaClient::onIPCMsg(const BinaryStream& message) {
     {
         std::lock_guard<std::mutex> guard(stateMtx_);
-        if (!active_) {
+        if (state_ != State::Starting && state_ != State::Connected) {
             return; // Ignore notifications queued before closure.
         }
     }
@@ -268,13 +285,19 @@ void LumaClient::onIPCMsg(const BinaryStream& message) {
 void LumaClient::addListener(void* owner, std::function<void(const cici::protocol::JsonMessage&)> message,
                              std::function<void()> closed, std::function<void()> connected) {
     makesureMainThread();
-    listeners_[owner] = {std::move(message), std::move(closed), connected};
-    bool isConnected;
+    State state;
     {
-        std::lock_guard<std::mutex> guard(stateMtx_);
-        isConnected = connected_;
+        std::lock_guard guard(stateMtx_);
+        state = state_;
     }
-    if (isConnected && connected) {
+    if (state == State::Stopping || state == State::Stopped) {
+        if (closed) {
+            closed();
+        }
+        return;
+    }
+    listeners_[owner] = {std::move(message), std::move(closed), connected};
+    if (state == State::Connected && connected) {
         connected();
     }
 }
@@ -290,13 +313,12 @@ void LumaRequestScope::reset() {
     versions_.clear();
 }
 
-void LumaRequestScope::callAsync(const std::u8string& key, std::string_view method, const nlohmann::json& body,
+void LumaRequestScope::callAsync(GlobalModel* app, const std::u8string& key, std::string_view method, const nlohmann::json& body,
                                 Callback apply, Callback complete) {
     makesureMainThread();
     assert(apply);
     const auto version = ++versions_[key];
-    LumaClient::instance().callAsync(this, method, body,
-        [this, key, version, generation = generation_, apply = std::move(apply), complete = std::move(complete)]
+    auto reply = [this, key, version, generation = generation_, apply = std::move(apply), complete = std::move(complete)]
         (cici::protocol::CallResult result) {
             const QPointer<LumaRequestScope> alive(this);
             if (generation == generation_ && versions_.at(key) == version) {
@@ -311,5 +333,12 @@ void LumaRequestScope::callAsync(const std::u8string& key, std::string_view meth
                 }
                 complete(std::move(result));
             }
-        });
+        };
+    if (auto client = app->luma()) {
+        client->callAsync(this, method, body, std::move(reply));
+    } else {
+        QMetaObject::invokeMethod(this, [reply = std::move(reply)]() mutable {
+            reply({cici::protocol::CallStatus::NotConnected});
+        }, Qt::QueuedConnection);
+    }
 }

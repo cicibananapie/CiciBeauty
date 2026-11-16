@@ -14,6 +14,8 @@
 
 #include "protocol/assets.h"
 
+class GlobalModel;
+
 class EffectCatalog {
 public:
     struct EffectInfo {
@@ -22,7 +24,7 @@ public:
         uint32_t hv_ = 0;
     };
 
-    EffectCatalog();
+    explicit EffectCatalog(GlobalModel* app);
     ~EffectCatalog();
     EffectCatalog(const EffectCatalog&) = delete;
     EffectCatalog& operator=(const EffectCatalog&) = delete;
@@ -46,6 +48,7 @@ public:
 private:
     bool applySnapshot(const nlohmann::json& body);
 
+    GlobalModel* app_;
     QObject requestOwner_;
     nlohmann::json catalogs_ = nlohmann::json::object();
     std::vector<EffectInfo> effects_;

@@ -83,7 +83,6 @@ class SubscriptionWidget : public QWidget {
 
 public:
     explicit SubscriptionWidget(GlobalModel* app, QWidget* parent = nullptr);
-    static void openSubscriptionPurchasePage();
 
 signals:
     void purchaseRequested();

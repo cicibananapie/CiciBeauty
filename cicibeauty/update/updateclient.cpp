@@ -20,6 +20,7 @@
 #include "ipcwrapper.h"
 #include "randwrapper.h"
 #include "updateclient.h"
+#include "../modelapp.h"
 #include "updateui.h"
 #include "../i18nsupport.h"
 #include "../lumaclient.h"
@@ -96,7 +97,12 @@ void UpdateClient::check() {
     targetVersion_.clear();
     updateAttempt_ = 0;
     checkResultReported_ = false;
-    LumaClient::instance().callAsync(
+    auto client = app_->luma();
+    if (!client) {
+        onClosed();
+        return;
+    }
+    client->callAsync(
         this, "helpers.startUpdater", {{"ipcName", to_char(key_)}, {"version", to_char(std::u8string(CICI_VERSION))},
                                        {"locale", to_char(to_u8(I18nSupport::currentLocaleName()))}},
         [this](cici::protocol::CallResult result) {
@@ -118,9 +124,9 @@ void UpdateClient::startUpdate(UpdateType type) {
         updateAttempt_ = attempt;
         updateInProgress_ = true;
         cancelPending_ = false;
-        reportUpdateStart(type, targetVersion_, attempt);
+        reportUpdateStart(app_, type, targetVersion_, attempt);
     } else {
-        reportUpdateResult(UpdateResult::StartRequestFailed,
+        reportUpdateResult(app_, UpdateResult::StartRequestFailed,
                            type,
                            targetVersion_,
                            attempt);
@@ -150,12 +156,12 @@ void UpdateClient::onClosed() {
     LogInfo<<logEnd;
     if (!checkResultReported_) {
         checkResultReported_ = true;
-        reportUpdateCheckResult(UpdateCheckResult::Failed,
+        reportUpdateCheckResult(app_, UpdateCheckResult::Failed,
                                 UpdateType::NoNeedUpdate,
                                 u8"");
     }
     if (updateInProgress_) {
-        reportUpdateResult(UpdateResult::Interrupted,
+        reportUpdateResult(app_, UpdateResult::Interrupted,
                            activeUpdateType_,
                            targetVersion_,
                            updateAttempt_);
@@ -194,7 +200,7 @@ void UpdateClient::handleUpdateInfoMsg(const UpdateInfoMsg& msg) {
     updateAttempt_ = 0;
     if (msg.type_ == UpdateType::NoNeedUpdate) {
         checkResultReported_ = true;
-        reportUpdateCheckResult(UpdateCheckResult::NoUpdate,
+        reportUpdateCheckResult(app_, UpdateCheckResult::NoUpdate,
                                 msg.type_,
                                 targetVersion_);
         askUpdater2Quit();
@@ -202,7 +208,7 @@ void UpdateClient::handleUpdateInfoMsg(const UpdateInfoMsg& msg) {
     }
 
     checkResultReported_ = true;
-    reportUpdateCheckResult(UpdateCheckResult::UpdateAvailable,
+    reportUpdateCheckResult(app_, UpdateCheckResult::UpdateAvailable,
                             msg.type_,
                             targetVersion_);
     
@@ -240,7 +246,7 @@ void UpdateClient::handleUpdateInfoMsg(const UpdateInfoMsg& msg) {
         if (dialog == nullptr || dlg_.data() != dialog.data()) {
             return;
         }
-        reportUpdateUiAction(UpdateUiAction::DialogShow,
+        reportUpdateUiAction(app_, UpdateUiAction::DialogShow,
                              dialog->updateType(),
                              dialog->newVersionU8());
         dialog->show();
@@ -294,7 +300,7 @@ void UpdateClient::handleUpdateFinishMsg(const UpdateFinishedMsg& msg) {
     // The updater reports check failures with UpdateFinishedMsg before sending any UpdateInfoMsg.
     if (!checkResultReported_) {
         checkResultReported_ = true;
-        reportUpdateCheckResult(UpdateCheckResult::Failed,
+        reportUpdateCheckResult(app_, UpdateCheckResult::Failed,
                                 msg.type_,
                                 targetVersion_);
         askUpdater2Quit();
@@ -307,7 +313,7 @@ void UpdateClient::handleUpdateFinishMsg(const UpdateFinishedMsg& msg) {
     } else if (msg.result_ == UpdateFinishResult::Cancelled) {
         result = UpdateResult::Cancelled;
     }
-    reportUpdateResult(result,
+    reportUpdateResult(app_, result,
                        msg.type_,
                        targetVersion_,
                        updateAttempt_);
@@ -341,7 +347,7 @@ void UpdateClient::handleUpdateFinishMsg(const UpdateFinishedMsg& msg) {
 void UpdateClient::onStartUpdateRequested() {
     LogInfo << dlg_->updateType() << logEnd;
     assert(dlg_ != nullptr);
-    reportUpdateUiAction(updateAttempt_ == 0
+    reportUpdateUiAction(app_, updateAttempt_ == 0
                              ? UpdateUiAction::StartClick
                              : UpdateUiAction::RetryClick,
                          dlg_->updateType(),
@@ -363,7 +369,7 @@ void UpdateClient::onCancelUpdateRequested() {
     LogInfo << type << logEnd;
 
     if (!updateInProgress_) {
-        reportUpdateUiAction(UpdateUiAction::DismissClick,
+        reportUpdateUiAction(app_, UpdateUiAction::DismissClick,
                              type,
                              dlg_->newVersionU8());
         ignoreUpdate(type);
@@ -372,7 +378,7 @@ void UpdateClient::onCancelUpdateRequested() {
     }
 
     assert(type != UpdateType::ForceUpdate);
-    reportUpdateUiAction(UpdateUiAction::CancelClick,
+    reportUpdateUiAction(app_, UpdateUiAction::CancelClick,
                          type,
                          dlg_->newVersionU8());
     if (cancelUpdate(type)) {
@@ -384,7 +390,7 @@ void UpdateClient::onCancelUpdateRequested() {
 void UpdateClient::onRestartOBSRequested() {
     LogInfo<<logEnd;
     assert(dlg_ != nullptr);
-    reportUpdateUiAction(UpdateUiAction::RestartClick,
+    reportUpdateUiAction(app_, UpdateUiAction::RestartClick,
                          dlg_->updateType(),
                          dlg_->newVersionU8());
     askUpdater2Quit(true, obsBinPath(), ProcessThreadOp::pid());
@@ -396,7 +402,7 @@ void UpdateClient::onRestartOBSRequested() {
 void UpdateClient::onCloseUpdateDialogRequested() {
     LogInfo<<logEnd;
     assert(dlg_ != nullptr);
-    reportUpdateUiAction(UpdateUiAction::CloseClick,
+    reportUpdateUiAction(app_, UpdateUiAction::CloseClick,
                          dlg_->updateType(),
                          dlg_->newVersionU8());
     askUpdater2Quit();

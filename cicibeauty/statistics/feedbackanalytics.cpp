@@ -59,15 +59,15 @@ nlohmann::json feedbackSubmitProperties(std::u8string_view attemptId,
 
 } // namespace
 
-void reportFeedbackUiAction(FeedbackUiAction action) {
-    CiciReport::reportEvent(KEVT_APP_FEEDBACK_UI_ACTION,
+void reportFeedbackUiAction(GlobalModel* app, FeedbackUiAction action) {
+    CiciReport::reportEvent(app, KEVT_APP_FEEDBACK_UI_ACTION,
                             nlohmann::json::object({
                                 {"action", to_json(std::u8string(feedbackActionName(action)))},
                             }));
 }
 
-void reportFeedbackIncludeLogsToggle(bool enabled) {
-    CiciReport::reportEvent(KEVT_APP_FEEDBACK_UI_ACTION,
+void reportFeedbackIncludeLogsToggle(GlobalModel* app, bool enabled) {
+    CiciReport::reportEvent(app, KEVT_APP_FEEDBACK_UI_ACTION,
                             nlohmann::json::object({
                                 {"action", to_json(std::u8string(feedbackActionName(
                                     FeedbackUiAction::IncludeLogsToggle)))},
@@ -75,18 +75,18 @@ void reportFeedbackIncludeLogsToggle(bool enabled) {
                             }));
 }
 
-std::u8string reportFeedbackSubmitUiAction(bool includeLogs,
+std::u8string reportFeedbackSubmitUiAction(GlobalModel* app, bool includeLogs,
                                            uint32_t screenshotCount,
                                            bool hasEmail) {
     const std::u8string attemptId = CiciUUID::generate();
     auto properties = feedbackSubmitProperties(
         attemptId, includeLogs, screenshotCount, hasEmail);
     properties["action"] = to_json(std::u8string(u8"submit_click"));
-    CiciReport::reportEvent(KEVT_APP_FEEDBACK_UI_ACTION, properties);
+    CiciReport::reportEvent(app, KEVT_APP_FEEDBACK_UI_ACTION, properties);
     return attemptId;
 }
 
-void reportFeedbackSubmitResult(std::u8string_view attemptId,
+void reportFeedbackSubmitResult(GlobalModel* app, std::u8string_view attemptId,
                                 FeedbackSubmitResult result,
                                 std::u8string_view failureReason,
                                 std::u8string_view feedbackId,
@@ -100,5 +100,5 @@ void reportFeedbackSubmitResult(std::u8string_view attemptId,
     properties["failure_reason"] = to_json(std::u8string(failureReason));
     properties["feedback_id"] = to_json(std::u8string(feedbackId));
     properties["duration_ms"] = durationMs;
-    CiciReport::reportEvent(KEVT_APP_FEEDBACK_SUBMIT_RESULT, properties);
+    CiciReport::reportEvent(app, KEVT_APP_FEEDBACK_SUBMIT_RESULT, properties);
 }

@@ -58,7 +58,7 @@ const char8_t* purchaseIntentName(SubscriptionPurchaseIntent purchaseIntent) {
 
 } // namespace
 
-void reportSubscriptionUiAction(SubscriptionUiAction action,
+void reportSubscriptionUiAction(GlobalModel* app, SubscriptionUiAction action,
                                 SubscriptionUiSource source,
                                 SubscriptionPurchaseIntent purchaseIntent) {
     nlohmann::json properties = nlohmann::json::object({
@@ -71,5 +71,5 @@ void reportSubscriptionUiAction(SubscriptionUiAction action,
         properties["purchase_intent"] = to_json(std::u8string(intentName));
     }
 
-    CiciReport::reportEvent(KEVT_APP_SUBSCRIPTION_UI_ACTION, properties);
+    CiciReport::reportEvent(app, KEVT_APP_SUBSCRIPTION_UI_ACTION, properties);
 }

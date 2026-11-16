@@ -44,12 +44,12 @@ FeedbackSubmitResult feedbackSubmitResult(FeedbackFinishStatus status) {
 
 } // namespace
 
-FeedbackDialog::FeedbackDialog(const QString& email, QWidget* parent)
-    : FeedbackDialog(email, parent, [](QObject* owner) { return new FeedbackClient(owner); }) {}
+FeedbackDialog::FeedbackDialog(GlobalModel* app, const QString& email, QWidget* parent)
+    : FeedbackDialog(app, email, parent, [app](QObject* owner) { return new FeedbackClient(app, owner); }) {}
 
-FeedbackDialog::FeedbackDialog(const QString& email, QWidget* parent, ClientFactory clientFactory,
+FeedbackDialog::FeedbackDialog(GlobalModel* app, const QString& email, QWidget* parent, ClientFactory clientFactory,
                                ScreenshotPicker screenshotPicker)
-    : QDialog(parent), clientFactory_(std::move(clientFactory)), screenshotPicker_(std::move(screenshotPicker)) {
+    : QDialog(parent), app_(app), clientFactory_(std::move(clientFactory)), screenshotPicker_(std::move(screenshotPicker)) {
     Q_ASSERT(clientFactory_);
     if (!screenshotPicker_) {
         screenshotPicker_ = [this]() {
@@ -149,21 +149,21 @@ FeedbackDialog::FeedbackDialog(const QString& email, QWidget* parent, ClientFact
     });
     connect(screenshots_, &QListWidget::itemSelectionChanged, this, &FeedbackDialog::updateControls);
     connect(addScreenshot_, &QPushButton::clicked, this, [this]() {
-        reportFeedbackUiAction(FeedbackUiAction::AddScreenshotClick);
+        reportFeedbackUiAction(app_, FeedbackUiAction::AddScreenshotClick);
         addScreenshots();
     });
     connect(removeScreenshot_, &QPushButton::clicked, this, [this]() {
-        reportFeedbackUiAction(FeedbackUiAction::RemoveScreenshotClick);
+        reportFeedbackUiAction(app_, FeedbackUiAction::RemoveScreenshotClick);
         removeScreenshot();
     });
-    connect(includeLogs_, &QCheckBox::clicked, this, [](bool checked) {
-        reportFeedbackIncludeLogsToggle(checked);
+    connect(includeLogs_, &QCheckBox::clicked, this, [this](bool checked) {
+        reportFeedbackIncludeLogsToggle(app_, checked);
     });
     connect(submit_, &QPushButton::clicked, this, [this]() {
         submit();
     });
     connect(cancel_, &QPushButton::clicked, this, [this]() {
-        reportFeedbackUiAction(state_ == State::Editing
+        reportFeedbackUiAction(app_, state_ == State::Editing
                                    ? FeedbackUiAction::CancelClick
                                    : FeedbackUiAction::CancelSubmissionClick);
         cancelOrClose();
@@ -218,8 +218,7 @@ void FeedbackDialog::submit() {
     submitIncludedLogs_ = includeLogs_->isChecked();
     submitScreenshotCount_ = static_cast<uint32_t>(paths.size());
     submitHadEmail_ = !email_->text().trimmed().isEmpty();
-    submitAttemptId_ = reportFeedbackSubmitUiAction(
-        submitIncludedLogs_, submitScreenshotCount_, submitHadEmail_);
+    submitAttemptId_ = reportFeedbackSubmitUiAction(app_, submitIncludedLogs_, submitScreenshotCount_, submitHadEmail_);
     submitStartedAt_ = std::chrono::steady_clock::now();
     setSubmitting();
     client->start(description, email_->text().trimmed(), paths, submitIncludedLogs_);
@@ -290,8 +289,7 @@ void FeedbackDialog::onFeedbackFinished(FeedbackFinishStatus status,
         const auto failureReason = status == FeedbackFinishStatus::Failed
             ? (errorCode.isEmpty() ? std::u8string(u8"unknown") : to_u8(errorCode))
             : std::u8string();
-        reportFeedbackSubmitResult(
-            submitAttemptId_, feedbackSubmitResult(status), failureReason,
+        reportFeedbackSubmitResult(app_, submitAttemptId_, feedbackSubmitResult(status), failureReason,
             to_u8(feedbackId), submitIncludedLogs_, submitScreenshotCount_,
             submitHadEmail_, durationMs);
         submitAttemptId_.clear();

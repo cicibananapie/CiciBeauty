@@ -3,14 +3,19 @@
 // See LICENSES/GPL-2.0-or-later.txt for the full license text.
 
 #include "subscriptioncontroller.h"
+#include "../modelapp.h"
 
 #include "../lumaclient.h"
 #include "log.h"
 
 using namespace cici::protocol;
 
-SubscriptionController::SubscriptionController() {
-    LumaClient::instance().addListener(
+SubscriptionController::SubscriptionController(GlobalModel* app) : app_(app) {
+    auto client = app_->luma();
+    if (!client) {
+        return;
+    }
+    client->addListener(
         this,
         [this](const JsonMessage& message) {
             const auto& method = message.value["method"].get_ref<const std::string&>();
@@ -49,11 +54,13 @@ SubscriptionController::SubscriptionController() {
 }
 
 SubscriptionController::~SubscriptionController() {
-    LumaClient::instance().removeListener(this);
+    if (auto client = app_->luma()) {
+        client->removeListener(this);
+    }
 }
 
 void SubscriptionController::refresh() {
-    requests_.callAsync(u8"refresh", "subscription.refresh", nlohmann::json::object(), [this](CallResult result) {
+    requests_.callAsync(app_, u8"refresh", "subscription.refresh", nlohmann::json::object(), [this](CallResult result) {
         SubscriptionStatus status;
         if (result.ok() && readSubscriptionStatus(result.body, status)) {
             status_ = std::move(status);
@@ -65,7 +72,8 @@ void SubscriptionController::refresh() {
 }
 
 void SubscriptionController::openPurchasePage() {
-    if (!LumaClient::instance().postMsg(JsonMessage("subscription.openPurchase", nlohmann::json::object()))) {
+    auto client = app_->luma();
+    if (!client || !client->postMsg(JsonMessage("subscription.openPurchase", nlohmann::json::object()))) {
         LogWarn << "send subscription purchase page request failed" << logEnd;
     }
 }

@@ -88,37 +88,37 @@ enum PageIndex {
     PageCount
 };
 
-void reportSettingsTabClick(int row) {
+void reportSettingsTabClick(GlobalModel* app_, int row) {
     switch (row) {
         case PageBasic:
-            reportSettingsTabSelect(SettingsTab::Basic);
+            reportSettingsTabSelect(app_, SettingsTab::Basic);
             break;
         case PageFilter:
-            reportSettingsTabSelect(SettingsTab::Filter);
+            reportSettingsTabSelect(app_, SettingsTab::Filter);
             break;
         case PageBeauty:
-            reportSettingsTabSelect(SettingsTab::BeautyEnhancement);
+            reportSettingsTabSelect(app_, SettingsTab::BeautyEnhancement);
             break;
         case PageMakeup:
-            reportSettingsTabSelect(SettingsTab::Makeup);
+            reportSettingsTabSelect(app_, SettingsTab::Makeup);
             break;
         case PageBodyShaping:
-            reportSettingsTabSelect(SettingsTab::BodyShaping);
+            reportSettingsTabSelect(app_, SettingsTab::BodyShaping);
             break;
         case PageAIEffect:
-            reportSettingsTabSelect(SettingsTab::AiEffect);
+            reportSettingsTabSelect(app_, SettingsTab::AiEffect);
             break;
         case PageEffectAsset:
-            reportSettingsTabSelect(SettingsTab::EffectAsset);
+            reportSettingsTabSelect(app_, SettingsTab::EffectAsset);
             break;
         case PageKeying:
-            reportSettingsTabSelect(SettingsTab::Keying);
+            reportSettingsTabSelect(app_, SettingsTab::Keying);
             break;
         case PageLens:
-            reportSettingsTabSelect(SettingsTab::LensEffect);
+            reportSettingsTabSelect(app_, SettingsTab::LensEffect);
             break;
         case PageImportExport:
-            reportSettingsTabSelect(SettingsTab::ImportExport);
+            reportSettingsTabSelect(app_, SettingsTab::ImportExport);
             break;
         default:
             assert(false);
@@ -335,7 +335,7 @@ void SettingController::createUI() {
     connect(tabBar_, &QListWidget::currentRowChanged, this, &SettingController::onTabCurrentRowChanged);
     connect(tabBar_, &QListWidget::itemClicked, this,
             [this](QListWidgetItem* item) {
-                reportSettingsTabClick(tabBar_->row(item));
+                reportSettingsTabClick(app_, tabBar_->row(item));
             });
     QObject::connect(sourceCombo_, qOverload<int>(&QComboBox::currentIndexChanged),
                      this, &SettingController::onSourceComboCurrentIndexChanged);
@@ -353,13 +353,13 @@ void SettingController::createUI() {
                          LogInfo << "[SourceSelection] activated index=" << index
                                  << ", name=" << sourceCombo_->currentText()
                                  << ", uuid=" << sourceUuid << logEnd;
-                         reportSettingsSourceSelect(sourceUuid, sourceType, sourceName);
+                         reportSettingsSourceSelect(app_, sourceUuid, sourceType, sourceName);
                      });
     QObject::connect(applyFilterBtn_, &QPushButton::clicked,
                      this, &SettingController::onApplyFilterClicked);
     QObject::connect(feedbackBtn_, &QPushButton::clicked,
                      this, [this]() {
-                         reportSupportUiAction(SupportUiAction::FeedbackClick);
+                         reportSupportUiAction(app_, SupportUiAction::FeedbackClick);
                          showFeedback();
                      });
     
@@ -484,7 +484,7 @@ void SettingController::showFeedback() {
     const QString email = app_->loginLogic() != nullptr
         ? from_u8(app_->loginLogic()->email())
         : QString();
-    feedbackDialog_ = new FeedbackDialog(email, this);
+    feedbackDialog_ = new FeedbackDialog(app_, email, this);
     feedbackDialog_->setAttribute(Qt::WA_DeleteOnClose);
     feedbackDialog_->show();
 }
@@ -1154,11 +1154,11 @@ void SettingController::onLogouted() {
         QMouseEvent *mouseEvent = static_cast<QMouseEvent*>(event);
         if (mouseEvent->button() == Qt::LeftButton) {
             if (watched == qqService_) {
-                reportSupportUiAction(SupportUiAction::QqServiceClick);
+                reportSupportUiAction(app_, SupportUiAction::QqServiceClick);
                 //todo...
             }
             else if (watched == guide_) {
-                reportSupportUiAction(SupportUiAction::GuideClick);
+                reportSupportUiAction(app_, SupportUiAction::GuideClick);
                 //todo...
             }
             else {

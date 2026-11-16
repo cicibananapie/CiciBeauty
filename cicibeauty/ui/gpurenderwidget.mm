@@ -450,7 +450,9 @@ GPURenderWidget::GPURenderWidget(GlobalModel *app, QWidget *parent)
 }
 
 GPURenderWidget::~GPURenderWidget() {
-    LumaClient::instance().removeListener(this);
+    if (auto client = app_->luma()) {
+        client->removeListener(this);
+    }
     clearOverlayWindowFilter();
 	unregisterNativeWindow();
     app_->unregisterFilterModelChangeObserver(this);
@@ -662,6 +664,10 @@ void GPURenderWidget::registerNativeWindow() {
 		return;
 	}
 
+    auto client = app_->luma();
+    if (!client) {
+        return;
+    }
 	int w = 0;
 	int h = 0;
     auto* info = model->obsInfo();
@@ -697,13 +703,13 @@ void GPURenderWidget::registerNativeWindow() {
     previewId_ = CiciUUID::generate();
     preview_ = std::make_unique<Preview>();
     preview_->renderSize = QSize(w, h);
-    LumaClient::instance().addListener(this, [this](const JsonMessage& message) {
+    client->addListener(this, [this](const JsonMessage& message) {
         onPreviewMessage(message);
     }, [this]() {
         unregisterNativeWindow();
     });
     const auto channel = u8"p" + previewId_.substr(0, 22);
-    preview_->requests.callAsync(
+    preview_->requests.callAsync(app_,
         u8"open", "preview.open",
         {{"instanceId", to_char(instanceId_)}, {"previewId", to_char(previewId_)},
          {"channel", to_char(channel)}, {"source", static_cast<uint32_t>(nativeRenderSourceType())},
@@ -747,10 +753,14 @@ void GPURenderWidget::unregisterNativeWindow() {
     const auto instance = std::exchange(instanceId_, {});
     nativeRenderModel_ = nullptr;
     preview_.reset(); // Finish GPU reads before returning their queue leases.
-    LumaClient::instance().removeListener(this);
+    if (auto client = app_->luma()) {
+        client->removeListener(this);
+    }
     if (!id.empty()) {
-        LumaClient::instance().postMsg(JsonMessage("preview.close", {
-            {"instanceId", to_char(instance)}, {"previewId", to_char(id)}}));
+        if (auto client = app_->luma()) {
+            client->postMsg(JsonMessage("preview.close", {
+                {"instanceId", to_char(instance)}, {"previewId", to_char(id)}}));
+        }
     }
     destroyNativeWindow();
 }
@@ -795,11 +805,13 @@ void GPURenderWidget::consumePreview(const PreviewFrame& frame) {
 
 void GPURenderWidget::updateColorPickMagnifier(int x, int y, float radius, float zoomRatio, bool active) {
     if (!previewId_.empty()) {
-        LumaClient::instance().postMsg(JsonMessage("preview.magnifier", {
-            {"instanceId", to_char(instanceId_)}, {"previewId", to_char(previewId_)},
-            {"x", std::clamp(x, 0, nativePixelSize().width() - 1)},
-            {"y", std::clamp(y, 0, nativePixelSize().height() - 1)},
-            {"radius", radius}, {"zoom", zoomRatio}, {"active", active}}));
+        if (auto client = app_->luma()) {
+            client->postMsg(JsonMessage("preview.magnifier", {
+                {"instanceId", to_char(instanceId_)}, {"previewId", to_char(previewId_)},
+                {"x", std::clamp(x, 0, nativePixelSize().width() - 1)},
+                {"y", std::clamp(y, 0, nativePixelSize().height() - 1)},
+                {"radius", radius}, {"zoom", zoomRatio}, {"active", active}}));
+        }
     }
 }
 
@@ -807,7 +819,7 @@ void GPURenderWidget::requestColorPick(int x, int y, std::function<void(uint32_t
     if (previewId_.empty()) {
         return;
     }
-    preview_->requests.callAsync(
+    preview_->requests.callAsync(app_,
         u8"color", "preview.pickColor",
         {{"instanceId", to_char(instanceId_)}, {"previewId", to_char(previewId_)}, {"x", x}, {"y", y}},
         [this, callback = std::move(callback)](CallResult result) {
@@ -828,7 +840,11 @@ void GPURenderWidget::autoKeying(GlobalModel* app, QObject* owner, std::function
         return;
     }
     const auto instance = model->filterUuid();
-    LumaClient::instance().callAsync(owner, "preview.autoKeying", {{"instanceId", to_char(instance)}},
+    auto client = app->luma();
+    if (!client) {
+        return;
+    }
+    client->callAsync(owner, "preview.autoKeying", {{"instanceId", to_char(instance)}},
         [instance, app, callback = std::move(callback)](CallResult result) {
             const auto& body = result.body;
             if (!result.ok() || !body.contains("rgba") || !body["rgba"].is_number_unsigned() ||

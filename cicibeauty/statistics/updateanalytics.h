@@ -4,6 +4,8 @@
 
 #pragma once
 
+class GlobalModel;
+
 #include <cstdint>
 #include <string_view>
 
@@ -33,16 +35,16 @@ enum class UpdateResult {
     StartRequestFailed,
 };
 
-void reportUpdateCheckResult(UpdateCheckResult result,
+void reportUpdateCheckResult(GlobalModel* app, UpdateCheckResult result,
                              UpdateType type,
                              std::u8string_view targetVersion);
-void reportUpdateUiAction(UpdateUiAction action,
+void reportUpdateUiAction(GlobalModel* app, UpdateUiAction action,
                           UpdateType type,
                           std::u8string_view targetVersion);
-void reportUpdateStart(UpdateType type,
+void reportUpdateStart(GlobalModel* app, UpdateType type,
                        std::u8string_view targetVersion,
                        uint32_t attempt);
-void reportUpdateResult(UpdateResult result,
+void reportUpdateResult(GlobalModel* app, UpdateResult result,
                         UpdateType type,
                         std::u8string_view targetVersion,
                         uint32_t attempt);

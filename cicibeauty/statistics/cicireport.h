@@ -8,7 +8,9 @@
 
 #include "nlohmann/json.hpp"
 
+class GlobalModel;
+
 class CiciReport {
 public:
-    static void reportEvent(const std::u8string& event, const nlohmann::json& properties = nlohmann::json::object());
+    static void reportEvent(GlobalModel* app, const std::u8string& event, const nlohmann::json& properties = nlohmann::json::object());
 };

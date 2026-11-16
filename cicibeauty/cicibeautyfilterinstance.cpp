@@ -71,7 +71,7 @@ obs_source_frame* CiciBeautyFilterInstance::onFilterVideo(obs_source_frame* fram
     obsInfo_->setFrameSize(frame->width, frame->height);
     if (!cameraOpenReported_.exchange(true)) {
         const std::u8string sourceUuid = this->sourceUuid();
-        CiciReport::reportEvent(KEVT_APP_CAMERA_OPEN_SUCCESS,
+        CiciReport::reportEvent(app_, KEVT_APP_CAMERA_OPEN_SUCCESS,
                                 nlohmann::json::object({
                                     {"filter_uuid", to_char(filterUuid_)},
                                     {"source_uuid", to_char(sourceUuid)},
@@ -79,6 +79,12 @@ obs_source_frame* CiciBeautyFilterInstance::onFilterVideo(obs_source_frame* fram
                                     {"width", frame->width},
                                     {"height", frame->height},
                                 }));
+    }
+    {
+        auto client = app_->luma();
+        if (!client || !client->connectionId()) {
+            return frame;
+        }
     }
     video_->process(*frame, canvasTransform_.load(std::memory_order_relaxed));
 
@@ -102,10 +108,12 @@ void CiciBeautyFilterInstance::onFilterAdd(obs_source_t* source) {
         obsInfo_->bindSource(source);
     }
     const auto videoChannel = video_->start();
-    LumaClient::instance().postMsg(cici::protocol::instanceMessage("instance.create", filterUuid_,
-                                                                   {{"sourceUuid", to_json(parentUuid)},
-                                                                    {"sourceType", to_json(obsSourceType(source))},
-                                                                    {"videoChannel", to_json(videoChannel)}}));
+    if (auto client = app_->luma()) {
+        client->postMsg(cici::protocol::instanceMessage("instance.create", filterUuid_,
+                                                                       {{"sourceUuid", to_json(parentUuid)},
+                                                                        {"sourceType", to_json(obsSourceType(source))},
+                                                                        {"videoChannel", to_json(videoChannel)}}));
+    }
     onHVModeChanged(obsInfo_->hvMode());
     onCanvasTransformChanged(obsInfo_->canvasTransform());
 }
@@ -141,7 +149,9 @@ void CiciBeautyFilterInstance::detachObsBindings() {
     std::lock_guard<std::mutex> guard(lifecycleMutex_);
     video_->stop();
     if (!parentUuid_.empty()) {
-        LumaClient::instance().postMsg(cici::protocol::instanceMessage("instance.destroy", filterUuid_));
+        if (auto client = app_->luma()) {
+            client->postMsg(cici::protocol::instanceMessage("instance.destroy", filterUuid_));
+        }
     }
     obsInfo_->unbindSource();
     parentUuid_.clear();
@@ -178,7 +188,7 @@ void CiciBeautyFilterInstance::queryEffectParamValues(
     for (const auto& path : paths) {
         queryPaths.push_back(to_json(path));
     }
-    requests.callAsync(
+    requests.callAsync(app_,
         u8"params", "instance.queryParamValues",
         {{"instanceId", to_json(filterUuid_)}, {"paths", std::move(queryPaths)}, {"defaultOnly", defaultOnly}},
         [callback = std::move(callback)](cici::protocol::CallResult result) {
@@ -196,7 +206,12 @@ void CiciBeautyFilterInstance::queryEffectParamValues(
 }
 void CiciBeautyFilterInstance::canActivateEffect(
     QObject* owner, uint64_t id, std::function<void(bool, const nlohmann::json&)> callback) const {
-    LumaClient::instance().callAsync(
+    auto client = app_->luma();
+    if (!client) {
+        callback(false, nlohmann::json::array());
+        return;
+    }
+    client->callAsync(
         owner, "instance.canActivateEffect", {{"instanceId", to_json(filterUuid_)}, {"effectId", id}},
         [callback = std::move(callback)](cici::protocol::CallResult result) {
             const auto& body = result.body;
@@ -211,8 +226,10 @@ void CiciBeautyFilterInstance::canActivateEffect(
         });
 }
 void CiciBeautyFilterInstance::retryEffectPackageDownload(uint64_t id) {
-    LumaClient::instance().postMsg(
-        cici::protocol::instanceMessage("instance.retryPackage", filterUuid_, {{"effectId", id}}));
+    if (auto client = app_->luma()) {
+        client->postMsg(
+            cici::protocol::instanceMessage("instance.retryPackage", filterUuid_, {{"effectId", id}}));
+    }
 }
 void CiciBeautyFilterInstance::applySettingPatch(const nlohmann::json& patch) {
     auto* settings = app_->settingConfig();
@@ -222,6 +239,8 @@ void CiciBeautyFilterInstance::applySettingPatch(const nlohmann::json& patch) {
     settings->applyPatch(filterUuid_, patch);
 }
 void CiciBeautyFilterInstance::onHVModeChanged(ObsInfo::HVMode mode) {
-    LumaClient::instance().postMsg(
-        cici::protocol::instanceMessage("instance.setMode", filterUuid_, {{"mode", static_cast<uint32_t>(mode)}}));
+    if (auto client = app_->luma()) {
+        client->postMsg(
+            cici::protocol::instanceMessage("instance.setMode", filterUuid_, {{"mode", static_cast<uint32_t>(mode)}}));
+    }
 }

@@ -4,6 +4,8 @@
 
 #pragma once
 
+class GlobalModel;
+
 #include <cstdint>
 #include <string>
 #include <string_view>
@@ -22,12 +24,12 @@ enum class FeedbackSubmitResult {
     Cancelled,
 };
 
-void reportFeedbackUiAction(FeedbackUiAction action);
-void reportFeedbackIncludeLogsToggle(bool enabled);
-std::u8string reportFeedbackSubmitUiAction(bool includeLogs,
+void reportFeedbackUiAction(GlobalModel* app, FeedbackUiAction action);
+void reportFeedbackIncludeLogsToggle(GlobalModel* app, bool enabled);
+std::u8string reportFeedbackSubmitUiAction(GlobalModel* app, bool includeLogs,
                                            uint32_t screenshotCount,
                                            bool hasEmail);
-void reportFeedbackSubmitResult(std::u8string_view attemptId,
+void reportFeedbackSubmitResult(GlobalModel* app, std::u8string_view attemptId,
                                 FeedbackSubmitResult result,
                                 std::u8string_view failureReason,
                                 std::u8string_view feedbackId,

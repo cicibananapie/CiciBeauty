@@ -8,7 +8,6 @@
 #include <cmath>
 #include <chrono>
 #include <cstring>
-#include "lumaclient.h"
 #include "uuid.h"
 #include "log.h"
 
@@ -142,9 +141,6 @@ void VideoClient::stop() {
 void VideoClient::process(obs_source_frame& frame, uint32_t transform) {
     std::unique_lock lock(mutex_, std::try_to_lock);
     if (!lock.owns_lock() || !current_) {
-        return;
-    }
-    if (!LumaClient::instance().connectionId()) {
         return;
     }
     const auto now = std::chrono::steady_clock::now();

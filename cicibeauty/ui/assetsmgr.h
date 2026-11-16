@@ -75,9 +75,11 @@ private:
     RemoteImageState state_ = RemoteImageState::Loading;
 };
 
+class GlobalModel;
+
 class AssetsMgr {
 public:
-    AssetsMgr();
+    explicit AssetsMgr(GlobalModel* app);
     ~AssetsMgr();
 
     AssetsMgr(const AssetsMgr&) = delete;
@@ -98,6 +100,7 @@ private:
     void onClosed();
 
 private:
+    GlobalModel* app_;
     QMap<QString, QPixmap> imageCache_;
     std::map<std::u8string, std::shared_ptr<RemoteImageStatus>> remoteImages_;
     std::map<std::u8string, std::shared_ptr<EffectPackageStatus>> effectPackages_;

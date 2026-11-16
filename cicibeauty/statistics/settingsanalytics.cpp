@@ -143,32 +143,32 @@ const char8_t* configTransferFailureReasonName(ConfigTransferFailureReason reaso
     return u8"unknown";
 }
 
-void reportAction(const char8_t* eventId, const char8_t* action) {
-    CiciReport::reportEvent(eventId, nlohmann::json::object({
+void reportAction(GlobalModel* app, const char8_t* eventId, const char8_t* action) {
+    CiciReport::reportEvent(app, eventId, nlohmann::json::object({
         {"action", to_json(std::u8string(action))},
     }));
 }
 
 } // namespace
 
-void reportSettingsTabSelect(SettingsTab tab) {
-    CiciReport::reportEvent(KEVT_APP_SETTINGS_TAB_SELECT,
+void reportSettingsTabSelect(GlobalModel* app, SettingsTab tab) {
+    CiciReport::reportEvent(app, KEVT_APP_SETTINGS_TAB_SELECT,
                             nlohmann::json::object({
                                 {"tab", to_json(std::u8string(settingsTabName(tab)))},
                             }));
 }
 
-void reportSettingsOpen(SettingsOpenEntry entry) {
-    CiciReport::reportEvent(KEVT_APP_SETTINGS_OPEN,
+void reportSettingsOpen(GlobalModel* app, SettingsOpenEntry entry) {
+    CiciReport::reportEvent(app, KEVT_APP_SETTINGS_OPEN,
                             nlohmann::json::object({
                                 {"entry", to_json(std::u8string(settingsOpenEntryName(entry)))},
                             }));
 }
 
-void reportSettingsSourceSelect(std::u8string_view sourceUuid,
+void reportSettingsSourceSelect(GlobalModel* app, std::u8string_view sourceUuid,
                                 std::u8string_view sourceType,
                                 std::u8string_view sourceName) {
-    CiciReport::reportEvent(KEVT_APP_SETTINGS_SOURCE_SELECT,
+    CiciReport::reportEvent(app, KEVT_APP_SETTINGS_SOURCE_SELECT,
                             nlohmann::json::object({
                                 {"source_uuid", to_json(std::u8string(sourceUuid))},
                                 {"source_type", to_json(std::u8string(sourceType))},
@@ -176,17 +176,17 @@ void reportSettingsSourceSelect(std::u8string_view sourceUuid,
                             }));
 }
 
-void reportAccountUiAction(AccountUiAction action) {
-    reportAction(KEVT_APP_ACCOUNT_UI_ACTION, accountActionName(action));
+void reportAccountUiAction(GlobalModel* app, AccountUiAction action) {
+    reportAction(app, KEVT_APP_ACCOUNT_UI_ACTION, accountActionName(action));
 }
 
-void reportSupportUiAction(SupportUiAction action) {
-    reportAction(KEVT_APP_SUPPORT_UI_ACTION, supportActionName(action));
+void reportSupportUiAction(GlobalModel* app, SupportUiAction action) {
+    reportAction(app, KEVT_APP_SUPPORT_UI_ACTION, supportActionName(action));
 }
 
-std::u8string reportConfigTransferUiAction(ConfigTransferUiAction action) {
+std::u8string reportConfigTransferUiAction(GlobalModel* app, ConfigTransferUiAction action) {
     const std::u8string attemptId = CiciUUID::generate();
-    CiciReport::reportEvent(KEVT_APP_CONFIG_TRANSFER_UI_ACTION,
+    CiciReport::reportEvent(app, KEVT_APP_CONFIG_TRANSFER_UI_ACTION,
                             nlohmann::json::object({
                                 {"action", to_json(std::u8string(
                                     configTransferActionName(action)))},
@@ -195,12 +195,12 @@ std::u8string reportConfigTransferUiAction(ConfigTransferUiAction action) {
     return attemptId;
 }
 
-void reportConfigTransferResult(ConfigTransferUiAction action,
+void reportConfigTransferResult(GlobalModel* app, ConfigTransferUiAction action,
                                 std::u8string_view attemptId,
                                 ConfigTransferResult result,
                                 ConfigTransferFailureReason failureReason,
                                 uint64_t durationMs) {
-    CiciReport::reportEvent(KEVT_APP_CONFIG_TRANSFER_RESULT,
+    CiciReport::reportEvent(app, KEVT_APP_CONFIG_TRANSFER_RESULT,
                             nlohmann::json::object({
                                 {"attempt_id", to_json(std::u8string(attemptId))},
                                 {"operation", to_json(std::u8string(

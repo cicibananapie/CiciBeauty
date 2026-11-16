@@ -95,38 +95,38 @@ nlohmann::json baseProperties(UpdateType type,
 
 } // namespace
 
-void reportUpdateCheckResult(UpdateCheckResult result,
+void reportUpdateCheckResult(GlobalModel* app, UpdateCheckResult result,
                              UpdateType type,
                              std::u8string_view targetVersion) {
     auto properties = baseProperties(type, targetVersion);
     properties["result"] = to_json(std::u8string(checkResultName(result)));
-    CiciReport::reportEvent(KEVT_APP_UPDATE_CHECK_RESULT, properties);
+    CiciReport::reportEvent(app, KEVT_APP_UPDATE_CHECK_RESULT, properties);
 }
 
-void reportUpdateUiAction(UpdateUiAction action,
+void reportUpdateUiAction(GlobalModel* app, UpdateUiAction action,
                           UpdateType type,
                           std::u8string_view targetVersion) {
     auto properties = baseProperties(type, targetVersion);
     properties["action"] = to_json(std::u8string(uiActionName(action)));
-    CiciReport::reportEvent(KEVT_APP_UPDATE_UI_ACTION, properties);
+    CiciReport::reportEvent(app, KEVT_APP_UPDATE_UI_ACTION, properties);
 }
 
-void reportUpdateStart(UpdateType type,
+void reportUpdateStart(GlobalModel* app, UpdateType type,
                        std::u8string_view targetVersion,
                        uint32_t attempt) {
     auto properties = baseProperties(type, targetVersion);
     properties["trigger"] = to_json(std::u8string(
         type == UpdateType::SilentUpdate ? u8"automatic" : u8"user"));
     properties["attempt"] = attempt;
-    CiciReport::reportEvent(KEVT_APP_UPDATE_START, properties);
+    CiciReport::reportEvent(app, KEVT_APP_UPDATE_START, properties);
 }
 
-void reportUpdateResult(UpdateResult result,
+void reportUpdateResult(GlobalModel* app, UpdateResult result,
                         UpdateType type,
                         std::u8string_view targetVersion,
                         uint32_t attempt) {
     auto properties = baseProperties(type, targetVersion);
     properties["result"] = to_json(std::u8string(updateResultName(result)));
     properties["attempt"] = attempt;
-    CiciReport::reportEvent(KEVT_APP_UPDATE_RESULT, properties);
+    CiciReport::reportEvent(app, KEVT_APP_UPDATE_RESULT, properties);
 }

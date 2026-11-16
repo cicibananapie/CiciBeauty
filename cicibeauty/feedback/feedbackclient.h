@@ -13,6 +13,8 @@
 #include "feedback_common.h"
 #include "ipcwrapper.h"
 
+class GlobalModel;
+
 class FeedbackClient : public QObject, public ISimpleIPCCallback {
     Q_OBJECT
 
@@ -24,7 +26,7 @@ class FeedbackClient : public QObject, public ISimpleIPCCallback {
     };
 
 public:
-    explicit FeedbackClient(QObject* parent = nullptr);
+    explicit FeedbackClient(GlobalModel* app, QObject* parent = nullptr);
     ~FeedbackClient() override;
 
     virtual void start(const QString& description, const QString& email,
@@ -49,6 +51,7 @@ private:
     void onIPCMsg(const BinaryStream& rawMsg) override;
 
 private:
+    GlobalModel* app_;
     std::unique_ptr<IPCServer> ipc_;
     QTimer connectionTimer_;
     QTimer cancellationTimer_;

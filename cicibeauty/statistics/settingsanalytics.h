@@ -4,6 +4,8 @@
 
 #pragma once
 
+class GlobalModel;
+
 #include <cstdint>
 #include <string>
 #include <string_view>
@@ -60,15 +62,15 @@ enum class ConfigTransferFailureReason {
     WriteFailed,
 };
 
-void reportSettingsTabSelect(SettingsTab tab);
-void reportSettingsOpen(SettingsOpenEntry entry);
-void reportSettingsSourceSelect(std::u8string_view sourceUuid,
+void reportSettingsTabSelect(GlobalModel* app, SettingsTab tab);
+void reportSettingsOpen(GlobalModel* app, SettingsOpenEntry entry);
+void reportSettingsSourceSelect(GlobalModel* app, std::u8string_view sourceUuid,
                                 std::u8string_view sourceType,
                                 std::u8string_view sourceName);
-void reportAccountUiAction(AccountUiAction action);
-void reportSupportUiAction(SupportUiAction action);
-std::u8string reportConfigTransferUiAction(ConfigTransferUiAction action);
-void reportConfigTransferResult(ConfigTransferUiAction action,
+void reportAccountUiAction(GlobalModel* app, AccountUiAction action);
+void reportSupportUiAction(GlobalModel* app, SupportUiAction action);
+std::u8string reportConfigTransferUiAction(GlobalModel* app, ConfigTransferUiAction action);
+void reportConfigTransferResult(GlobalModel* app, ConfigTransferUiAction action,
                                 std::u8string_view attemptId,
                                 ConfigTransferResult result,
                                 ConfigTransferFailureReason failureReason,

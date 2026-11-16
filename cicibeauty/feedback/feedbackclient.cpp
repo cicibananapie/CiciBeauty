@@ -3,6 +3,7 @@
 // See LICENSES/GPL-2.0-or-later.txt for the full license text.
 
 #include "feedbackclient.h"
+#include "../modelapp.h"
 
 #include <algorithm>
 
@@ -29,7 +30,7 @@ bool isServerErrorCode(std::u8string_view code) {
 
 }  // namespace
 
-FeedbackClient::FeedbackClient(QObject* parent) : QObject(parent) {
+FeedbackClient::FeedbackClient(GlobalModel* app, QObject* parent) : QObject(parent), app_(app) {
     connectionTimer_.setSingleShot(true);
     connect(&connectionTimer_, &QTimer::timeout, this, [this]() {
         fail(u8"helper_start_timeout", tr("The feedback service did not start."));
@@ -265,7 +266,12 @@ std::u8string FeedbackClient::deviceInfo() const {
 }
 
 void FeedbackClient::launch() {
-    LumaClient::instance().callAsync(this, "helpers.startFeedback", {{"ipcName", to_char(key_)}},
+    auto client = app_->luma();
+    if (!client) {
+        fail(u8"helper_launch_failed", tr("The feedback service could not be started."));
+        return;
+    }
+    client->callAsync(this, "helpers.startFeedback", {{"ipcName", to_char(key_)}},
         [this](cici::protocol::CallResult result) {
             if (!result.ok() && (state_ == State::Connecting || state_ == State::Cancelling) && !ipc_->connected()) {
                 fail(u8"helper_launch_failed", tr("The feedback service could not be started."));

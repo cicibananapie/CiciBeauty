@@ -9,13 +9,15 @@
 #include "protocol/account.h"
 
 // Qt interface with a local snapshot. ciciluma owns the login state machine.
+class GlobalModel;
+
 class LoginLogic : public QObject, public LoginStates {
     Q_OBJECT
 public:
-  explicit LoginLogic(QObject* parent);
+  explicit LoginLogic(GlobalModel* app, QObject* parent);
   ~LoginLogic() override;
 
-  static void openProfilePage();
+  void openProfilePage();
   void autoLogin();
   void login();
   void logout();
@@ -47,5 +49,7 @@ signals:
   void loginFailed(LoginFailureReason reason, const std::u8string& errorMessage);
 
 private:
+  bool post(std::string_view method);
+  GlobalModel* app_;
   LoginInfo info_;
 };

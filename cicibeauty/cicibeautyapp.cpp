@@ -395,6 +395,10 @@ AssetsMgr* CiciBeautyApp::assets() const {
     return assets_.get();
 }
 
+LumaAccess CiciBeautyApp::luma() const {
+    return LumaAccess(lumaMutex_, luma_);
+}
+
 UpdateClient* CiciBeautyApp::updater() const {
     return updater_.get();
 }
@@ -434,27 +438,27 @@ bool CiciBeautyApp::hasCiciFilterOnSource(const std::u8string& sourceUuid) {
 bool CiciBeautyApp::applyCiciFilterToSource(const std::u8string& sourceUuid,
                                             const std::u8string& trigger) {
     if (sourceUuid.empty()) {
-        CiciReport::reportEvent(KEVT_APP_FILTER_APPLY, filterEventProperties(
+        CiciReport::reportEvent(this, KEVT_APP_FILTER_APPLY, filterEventProperties(
             trigger, "failed", "source_uuid_empty", nullptr));
         return false;
     }
 
     obs_source_t* source = obs_get_source_by_uuid(to_char(sourceUuid));
     if (source == nullptr) {
-        CiciReport::reportEvent(KEVT_APP_FILTER_APPLY, filterEventProperties(
+        CiciReport::reportEvent(this, KEVT_APP_FILTER_APPLY, filterEventProperties(
             trigger, "failed", "source_not_found", nullptr, {}, sourceUuid));
         return false;
     }
 
     if (!isCiciApplicableSource(source)) {
-        CiciReport::reportEvent(KEVT_APP_FILTER_APPLY, filterEventProperties(
+        CiciReport::reportEvent(this, KEVT_APP_FILTER_APPLY, filterEventProperties(
             trigger, "failed", "source_not_applicable", source, {}, sourceUuid));
         obs_source_release(source);
         return false;
     }
 
     if (hasCiciFilter(source)) {
-        CiciReport::reportEvent(KEVT_APP_FILTER_APPLY, filterEventProperties(
+        CiciReport::reportEvent(this, KEVT_APP_FILTER_APPLY, filterEventProperties(
             trigger, "failed", "already_has_filter", source, {}, sourceUuid));
         obs_source_release(source);
         return false;
@@ -464,7 +468,7 @@ bool CiciBeautyApp::applyCiciFilterToSource(const std::u8string& sourceUuid,
     obs_source_t* filter = obs_source_create(kCiciFilterId, to_char(name), nullptr, nullptr);
     if (filter == nullptr) {
         LogError << "applyCiciFilterToSource failed to create filter" << logEnd;
-        CiciReport::reportEvent(KEVT_APP_FILTER_APPLY, filterEventProperties(
+        CiciReport::reportEvent(this, KEVT_APP_FILTER_APPLY, filterEventProperties(
             trigger, "failed", "create_filter_failed", source, {}, sourceUuid));
         obs_source_release(source);
         return false;
@@ -485,21 +489,21 @@ bool CiciBeautyApp::applyCiciFilterToSource(const std::u8string& sourceUuid,
 bool CiciBeautyApp::removeCiciFilterFromSource(const std::u8string& sourceUuid,
                                                const std::u8string& trigger) {
     if (sourceUuid.empty()) {
-        CiciReport::reportEvent(KEVT_APP_FILTER_REMOVE, filterEventProperties(
+        CiciReport::reportEvent(this, KEVT_APP_FILTER_REMOVE, filterEventProperties(
             trigger, "failed", "source_uuid_empty", nullptr));
         return false;
     }
 
     obs_source_t* source = obs_get_source_by_uuid(to_char(sourceUuid));
     if (source == nullptr) {
-        CiciReport::reportEvent(KEVT_APP_FILTER_REMOVE, filterEventProperties(
+        CiciReport::reportEvent(this, KEVT_APP_FILTER_REMOVE, filterEventProperties(
             trigger, "failed", "source_not_found", nullptr, {}, sourceUuid));
         return false;
     }
 
     obs_source_t* filter = ciciFilterFromSource(source);
     if (filter == nullptr) {
-        CiciReport::reportEvent(KEVT_APP_FILTER_REMOVE, filterEventProperties(
+        CiciReport::reportEvent(this, KEVT_APP_FILTER_REMOVE, filterEventProperties(
             trigger, "failed", "filter_not_found", source, {}, sourceUuid));
         obs_source_release(source);
         return false;
@@ -575,7 +579,7 @@ void CiciBeautyApp::ensureDockCreated() {
                          this,
                          [this](bool visible) {
                              if (visible) {
-                                 reportSettingsOpen(SettingsOpenEntry::DocksMenu);
+                                 reportSettingsOpen(this, SettingsOpenEntry::DocksMenu);
                                  showCici();
                              }
                          });
@@ -587,7 +591,7 @@ bool CiciBeautyApp::ensureContextBarEntryAttached() {
         contextBarEntry_ = std::make_unique<ContextBarEntryController>(
             subscriptionController(),
             [this]() {
-                reportSettingsOpen(SettingsOpenEntry::ContextBar);
+                reportSettingsOpen(this, SettingsOpenEntry::ContextBar);
                 showCici();
             });
     }
@@ -745,7 +749,7 @@ void CiciBeautyApp::onFilterRemove(void *data, obs_source_t *source) {
             << " filter_uuid=" << instance->filterUuid()
             << " trigger=" << trigger << logEnd;
     if (trigger != kDuplicateFilterRejected) {
-        CiciReport::reportEvent(KEVT_APP_FILTER_REMOVE, filterEventProperties(
+        CiciReport::reportEvent(instance->app(), KEVT_APP_FILTER_REMOVE, filterEventProperties(
             trigger, "success", nullptr, source, instance->filterUuid()));
     }
     instance->onFilterRemove();
@@ -788,7 +792,7 @@ void CiciBeautyApp::onFilterAdd(void *data, obs_source_t *source) {
         auto properties = filterEventProperties(
             trigger, "failed", "already_has_filter", source, addedFilterUuid);
         properties["existing_filter_uuid"] = to_char(scan.otherCiciFilterUuid);
-        CiciReport::reportEvent(KEVT_APP_FILTER_APPLY, properties);
+        CiciReport::reportEvent(instance->app(), KEVT_APP_FILTER_APPLY, properties);
         return;
     }
 
@@ -798,7 +802,7 @@ void CiciBeautyApp::onFilterAdd(void *data, obs_source_t *source) {
     LogInfo << "Cici filter accepted source_uuid=" << sourceUuid
             << " filter_uuid=" << addedFilterUuid
             << " trigger=" << trigger << logEnd;
-    CiciReport::reportEvent(KEVT_APP_FILTER_APPLY, filterEventProperties(
+    CiciReport::reportEvent(instance->app(), KEVT_APP_FILTER_APPLY, filterEventProperties(
         trigger, "success", nullptr, source, addedFilterUuid));
     instance->app()->scheduleCiciFilterChanged(sourceUuid);
     obs_source_release(scan.addedFilterRef);
@@ -814,19 +818,30 @@ void CiciBeautyApp::startGlobalServices() {
             .count();
 
     const char* obsVersion = obs_get_version_string();
-    if (LumaClient::instance().start()) {
-        LumaClient::instance().postMsg(cici::protocol::initializeSession("obs", obsVersion != nullptr ? obsVersion : "",
+    {
+        std::lock_guard lock(lumaMutex_);
+        luma_ = std::make_unique<LumaClient>();
+    }
+    luma_->closed = [this]() {
+        std::lock_guard lock(lumaMutex_);
+        if (luma_) {
+            // Finish the current IPC callback before destroying the client.
+            luma_.release()->deleteLater();
+        }
+    };
+    if (luma_->start()) {
+        luma_->postMsg(cici::protocol::initializeSession("obs", obsVersion != nullptr ? obsVersion : "",
                                                                          ProcessThreadOp::pid(), startedAtMs,
                                                                          to_char(std::u8string(CICI_VERSION)),
                                                                          isOfficialBuild(),
                                                                          to_char(std::u8string(CICI_CHANNEL_ID))));
     }
-    CiciReport::reportEvent(KEVT_APP_LAUNCH, nlohmann::json::object({
+    CiciReport::reportEvent(this, KEVT_APP_LAUNCH, nlohmann::json::object({
         {"launch_source", "obs_plugin"},
         {"official_build", isOfficialBuild()},
     }));
 
-    subscriptionController_ = std::make_unique<SubscriptionController>();
+    subscriptionController_ = std::make_unique<SubscriptionController>(this);
     ensureLoginLogic();
     ensureSettingConfig();
     autoLogin();
@@ -907,13 +922,20 @@ void CiciBeautyApp::stopGlobalServices() {
     runShutdownPhase("assets", [this]() {
         assets_.reset();
     });
-    runShutdownPhase("exit_event", []() {
-        CiciReport::reportEvent(KEVT_APP_EXIT, nlohmann::json::object({
+    runShutdownPhase("exit_event", [this]() {
+        CiciReport::reportEvent(this, KEVT_APP_EXIT, nlohmann::json::object({
             {"exit_reason", "global_services_stop"},
         }));
     });
-    runShutdownPhase("luma_stop", []() {
-        LumaClient::instance().stop();
+    runShutdownPhase("luma_stop", [this]() {
+        std::unique_ptr<LumaClient> client;
+        {
+            std::lock_guard lock(lumaMutex_);
+            client = std::move(luma_);
+        }
+        if (client) {
+            client->stop();
+        }
     });
 
     globalStarted_ = false;
@@ -931,7 +953,7 @@ void CiciBeautyApp::ensureSettingConfig() {
         return;
     }
 
-    settingConfig_ = std::make_unique<SettingConfig>();
+    settingConfig_ = std::make_unique<SettingConfig>(this);
     QObject::connect(settingConfig_.get(), &ISettingConfig::ready, this, &CiciBeautyApp::createSettingWidget);
 }
 
@@ -941,7 +963,7 @@ void CiciBeautyApp::ensureEffectCatalog() {
         return;
     }
 
-    effectCatalog_ = std::make_unique<EffectCatalog>();
+    effectCatalog_ = std::make_unique<EffectCatalog>(this);
     effectCatalog_->ready = [this]() {
         createSettingWidget();
     };
@@ -953,7 +975,7 @@ void CiciBeautyApp::ensureLoginLogic() {
     if (loginLogic_ != nullptr) {
         return;
     }
-    loginLogic_ = std::make_unique<LoginLogic>(nullptr);
+    loginLogic_ = std::make_unique<LoginLogic>(this, nullptr);
     QObject::connect(loginLogic_.get(), &LoginLogic::interactiveLoginReady, this,
                      &CiciBeautyApp::activateObsMainWindow);
 }
@@ -961,7 +983,7 @@ void CiciBeautyApp::ensureLoginLogic() {
 void CiciBeautyApp::ensureAssets() {
     assert(assets_ == nullptr);
     if (assets_ == nullptr) {
-        assets_ = std::make_unique<AssetsMgr>();
+        assets_ = std::make_unique<AssetsMgr>(this);
     }
 }
 
@@ -1007,7 +1029,7 @@ void CiciBeautyApp::addToolMenuItem() {
 
     action->setIcon(ciciPluginIcon());
     QObject::connect(action, &QAction::triggered, this, [this]() {
-        reportSettingsOpen(SettingsOpenEntry::ToolsMenu);
+        reportSettingsOpen(this, SettingsOpenEntry::ToolsMenu);
         showCici();
     });
     toolMenuAdded_ = true;

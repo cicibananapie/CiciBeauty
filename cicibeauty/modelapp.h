@@ -19,6 +19,7 @@ class UpdateClient;
 class ISettingConfig;
 class SubscriptionController;
 class LumaRequestScope;
+class LumaAccess;
 class QObject;
 class QWidget;
 
@@ -55,6 +56,7 @@ public:
 class GlobalModel {
 public:
 	virtual ~GlobalModel() = default;
+	virtual LumaAccess luma() const = 0;
 	virtual AssetsMgr *assets() const = 0;
 	virtual LoginLogic *loginLogic() const = 0;
 	virtual SubscriptionController *subscriptionController() const = 0;

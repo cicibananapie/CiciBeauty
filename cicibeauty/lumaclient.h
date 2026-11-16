@@ -17,13 +17,18 @@
 #include "ipcwrapper.h"
 #include "protocol/call.h"
 
+class GlobalModel;
+
 // Lifecycle and request callbacks run on the main thread; postMsg accepts any thread.
-class LumaClient : public ISimpleIPCCallback {
+class LumaClient : public QObject, public ISimpleIPCCallback {
 public:
-    static LumaClient& instance();
+    LumaClient() = default;
+    ~LumaClient() override;
 
     bool start();
     void stop();
+    // Runs once after request completions and listener notifications.
+    std::function<void()> closed;
     const std::u8string& sessionId() const {
         return sessionId_;
     }
@@ -47,8 +52,14 @@ public:
     LumaClient& operator=(const LumaClient&) = delete;
 
 private:
-    LumaClient() = default;
-    ~LumaClient() override;
+    enum class State {
+        NotStarted,
+        Starting,
+        Connected,
+        Disconnected, // Transport closed; main-thread cleanup has not started.
+        Stopping,
+        Stopped,
+    };
 
     void onConnected() override;
     void onClosed() override;
@@ -68,8 +79,7 @@ private:
     std::mutex stateMtx_;
     std::vector<BinaryStream> pending_;
     uint64_t nextRequestId_ = 0;
-    bool active_ = false;
-    bool connected_ = false;
+    State state_ = State::NotStarted; // Protected by stateMtx_.
     uint64_t connectionId_ = 0;
     std::u8string sessionId_;
 };
@@ -120,7 +130,7 @@ public:
     using Callback = std::function<void(cici::protocol::CallResult)>;
 
     void reset();
-    void callAsync(const std::u8string& key, std::string_view method, const nlohmann::json& body,
+    void callAsync(GlobalModel* app, const std::u8string& key, std::string_view method, const nlohmann::json& body,
                    Callback apply, Callback complete = {});
 
 private:

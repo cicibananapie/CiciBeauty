@@ -103,9 +103,9 @@ AccountEntryWidget::AccountEntryWidget(GlobalModel* app, QWidget* parent)
     manageAccountButton->setCursor(Qt::PointingHandCursor);
     manageAccountButton->setFixedHeight(28);
     QObject::connect(manageAccountButton, &QPushButton::clicked,
-                     this, []() {
-                         reportAccountUiAction(AccountUiAction::ManageAccountClick);
-                         LoginLogic::openProfilePage();
+                     this, [this]() {
+                         reportAccountUiAction(app_, AccountUiAction::ManageAccountClick);
+                         app_->loginLogic()->openProfilePage();
                      });
 
     auto* logoutButton = new QPushButton(tr("Log out"), actionArea_);
@@ -114,7 +114,7 @@ AccountEntryWidget::AccountEntryWidget(GlobalModel* app, QWidget* parent)
     logoutButton->setFixedHeight(28);
     QObject::connect(logoutButton, &QPushButton::clicked,
                      this, [this]() {
-                         reportAccountUiAction(AccountUiAction::LogoutClick);
+                         reportAccountUiAction(app_, AccountUiAction::LogoutClick);
                          app_->loginLogic()->logout();
                      });
 
