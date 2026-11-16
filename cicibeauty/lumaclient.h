@@ -9,6 +9,7 @@
 #include <vector>
 #include <functional>
 #include <map>
+#include <utility>
 
 #include <QTimer>
 
@@ -71,6 +72,43 @@ private:
     bool connected_ = false;
     uint64_t connectionId_ = 0;
     std::u8string sessionId_;
+};
+
+// Borrows the client while holding its owner's mutex on the calling thread.
+// The owner and mutex must outlive this handle.
+class LumaAccess {
+public:
+    LumaAccess(std::recursive_mutex& mutex, const std::unique_ptr<LumaClient>& client)
+        : lock_(mutex), client_(client.get()) {
+    }
+
+    LumaAccess(const LumaAccess&) = delete;
+    LumaAccess& operator=(const LumaAccess&) = delete;
+
+    LumaAccess(LumaAccess&& other) noexcept
+        : lock_(std::move(other.lock_)), client_(std::exchange(other.client_, nullptr)) {
+    }
+
+    LumaAccess& operator=(LumaAccess&& other) noexcept {
+        if (this != &other) {
+            lock_ = std::move(other.lock_);
+            client_ = std::exchange(other.client_, nullptr);
+        }
+        return *this;
+    }
+
+    LumaClient* operator->() const {
+        return client_;
+    }
+
+    explicit operator bool() const {
+        return client_ != nullptr;
+    }
+
+private:
+    // Member order ensures the mutex is locked before the owner is read.
+    std::unique_lock<std::recursive_mutex> lock_;
+    LumaClient* client_;
 };
 
 // Main-thread requests that update independent pieces of state.
