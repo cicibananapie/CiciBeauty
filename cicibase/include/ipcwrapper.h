@@ -108,6 +108,7 @@ private:
     std::vector<ISimpleIPCCallback *> cbs_;
     uint32_t callbackDispatchDepth_ = 0;
     bool callbacksDirty_ = false;
+    std::shared_ptr<int> callbackLifetime_ = std::make_shared<int>(0);
     ShareMemoryIPC* reader_ = nullptr;      //to me this is reader, but to remote this writer
     ShareMemoryIPC* writer_ = nullptr;      //to me this is writer, but to remote this reader
     

@@ -136,6 +136,7 @@ SimpleIPC::~SimpleIPC() {
         std::terminate();
     }
     stop();
+    callbackLifetime_.reset();
     delete reader_;
     delete writer_;
 }
@@ -504,7 +505,10 @@ void SimpleIPC::onIPCMsg() {
             continue;
         }
 
-        asyncRunUI([this, rawMsg](){
+        asyncRunUI([this, rawMsg, lifetime = std::weak_ptr<int>(callbackLifetime_)](){
+            if (lifetime.expired() || status_.load() != Running) {
+                return;
+            }
             onIPCMsgInMainThread(rawMsg);
         });
     }
