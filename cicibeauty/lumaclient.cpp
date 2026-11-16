@@ -131,9 +131,6 @@ void LumaClient::stop() {
         std::lock_guard guard(stateMtx_);
         state_ = State::Stopped;
     }
-    if (auto notify = std::exchange(closed, {})) {
-        notify();
-    }
 }
 
 bool LumaClient::postMsg(const IPCMessage& message) {

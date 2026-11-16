@@ -818,19 +818,16 @@ void CiciBeautyApp::startGlobalServices() {
             .count();
 
     const char* obsVersion = obs_get_version_string();
+    auto* client = new LumaClient(this);
     {
         std::lock_guard lock(lumaMutex_);
-        luma_ = std::make_unique<LumaClient>();
+        luma_ = client;
     }
-    luma_->closed = [this]() {
-        std::lock_guard lock(lumaMutex_);
-        if (luma_) {
-            // Finish the current IPC callback before destroying the client.
-            luma_.release()->deleteLater();
-        }
-    };
-    if (luma_->start()) {
-        luma_->postMsg(cici::protocol::initializeSession("obs", obsVersion != nullptr ? obsVersion : "",
+    client->addListener(this, {}, [this]() {
+        onLumaClosed();
+    });
+    if (client->start()) {
+        client->postMsg(cici::protocol::initializeSession("obs", obsVersion != nullptr ? obsVersion : "",
                                                                          ProcessThreadOp::pid(), startedAtMs,
                                                                          to_char(std::u8string(CICI_VERSION)),
                                                                          isOfficialBuild(),
@@ -928,10 +925,10 @@ void CiciBeautyApp::stopGlobalServices() {
         }));
     });
     runShutdownPhase("luma_stop", [this]() {
-        std::unique_ptr<LumaClient> client;
+        LumaClient* client;
         {
             std::lock_guard lock(lumaMutex_);
-            client = std::move(luma_);
+            client = luma_;
         }
         if (client) {
             client->stop();
@@ -946,6 +943,18 @@ void CiciBeautyApp::stopGlobalServices() {
     LogInfo << "[ShutdownTrace] complete total_ms=" << totalElapsedMs << logEnd;
 }
 
+
+void CiciBeautyApp::onLumaClosed() {
+    LumaClient* client;
+    {
+        std::lock_guard lock(lumaMutex_);
+        client = std::exchange(luma_, nullptr);
+    }
+    if (client) {
+        // Finish the current IPC callback before destroying the client.
+        client->deleteLater();
+    }
+}
 
 void CiciBeautyApp::ensureSettingConfig() {
     assert(settingConfig_ == nullptr);

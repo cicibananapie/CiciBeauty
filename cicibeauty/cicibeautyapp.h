@@ -96,6 +96,7 @@ public:
 private:
     void startGlobalServices();
     void stopGlobalServices();
+    void onLumaClosed();
 
     void ensureLoginLogic();
     void ensureSettingConfig();
@@ -140,7 +141,7 @@ private:    //GlobalModel
     
 private:
     mutable std::recursive_mutex lumaMutex_;
-    std::unique_ptr<LumaClient> luma_;
+    LumaClient* luma_ = nullptr;
     QPointer<QWidget> dockContainer_;
     QPointer<SettingController> settingWidget_;
     std::unique_ptr<ContextBarEntryController> contextBarEntry_;

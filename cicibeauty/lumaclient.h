@@ -22,13 +22,12 @@ class GlobalModel;
 // Lifecycle and request callbacks run on the main thread; postMsg accepts any thread.
 class LumaClient : public QObject, public ISimpleIPCCallback {
 public:
-    LumaClient() = default;
+    explicit LumaClient(QObject* parent = nullptr) : QObject(parent) {
+    }
     ~LumaClient() override;
 
     bool start();
     void stop();
-    // Runs once after request completions and listener notifications.
-    std::function<void()> closed;
     const std::u8string& sessionId() const {
         return sessionId_;
     }
@@ -88,8 +87,8 @@ private:
 // The owner and mutex must outlive this handle.
 class LumaAccess {
 public:
-    LumaAccess(std::recursive_mutex& mutex, const std::unique_ptr<LumaClient>& client)
-        : lock_(mutex), client_(client.get()) {
+    LumaAccess(std::recursive_mutex& mutex, LumaClient* const& client)
+        : lock_(mutex), client_(client) {
     }
 
     LumaAccess(const LumaAccess&) = delete;
