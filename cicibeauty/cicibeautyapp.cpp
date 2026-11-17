@@ -807,20 +807,18 @@ void CiciBeautyApp::startGlobalServices() {
         return;
     }
 
+    subscriptionController_ = std::make_unique<SubscriptionController>(this);
+    ensureLoginLogic();
+    ensureSettingConfig();
+    ensureAssets();
+    ensureUpdater();
+    ensureEffectCatalog();
+
     startLumaSession();
     CiciReport::reportEvent(this, KEVT_APP_LAUNCH, nlohmann::json::object({
         {"launch_source", "obs_plugin"},
         {"official_build", isOfficialBuild()},
     }));
-
-    subscriptionController_ = std::make_unique<SubscriptionController>(this);
-    ensureLoginLogic();
-    ensureSettingConfig();
-    autoLogin();
-    ensureAssets();
-    ensureUpdater();
-
-    ensureEffectCatalog();
     ensureDockCreated();
 
     obs_frontend_add_event_callback(onFrontendEventCallback, this);
@@ -929,6 +927,11 @@ void CiciBeautyApp::startLumaSession() {
     client->addListener(this, {}, [this]() {
         onLumaClosed();
     });
+    subscriptionController_->bindLumaSession();
+    loginLogic_->bindLumaSession();
+    settingConfig_->bindLumaSession();
+    assets_->bindLumaSession();
+    effectCatalog_->load();
 
     const auto startedAtMs =
         std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch())
@@ -939,6 +942,7 @@ void CiciBeautyApp::startLumaSession() {
                                                         ProcessThreadOp::pid(), startedAtMs,
                                                         to_char(std::u8string(CICI_VERSION)), isOfficialBuild(),
                                                         to_char(std::u8string(CICI_CHANNEL_ID))));
+        autoLogin();
     }
 }
 
@@ -987,7 +991,6 @@ void CiciBeautyApp::ensureEffectCatalog() {
     effectCatalog_->ready = [this]() {
         createSettingWidget();
     };
-    effectCatalog_->load();
 }
 
 void CiciBeautyApp::ensureLoginLogic() {

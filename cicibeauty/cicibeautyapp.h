@@ -28,6 +28,7 @@ class LoginLogic;
 class LoginWidget;
 class LumaClient;
 class ISettingConfig;
+class SettingConfig;
 class SettingController;
 class SourceListCiciStatusController;
 class SubscriptionController;
@@ -152,7 +153,7 @@ private:
     std::unique_ptr<AssetsMgr> assets_;
     std::unique_ptr<UpdateClient> updater_;
     std::unique_ptr<LoginLogic> loginLogic_;
-    std::unique_ptr<ISettingConfig> settingConfig_;
+    std::unique_ptr<SettingConfig> settingConfig_;
     std::unique_ptr<EffectCatalog> effectCatalog_;
     std::unique_ptr<SubscriptionController> subscriptionController_;
     QPointer<LoginWidget> loginWidget_;

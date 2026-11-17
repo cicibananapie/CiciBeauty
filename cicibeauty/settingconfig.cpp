@@ -13,6 +13,11 @@
 using namespace cici::protocol;
 
 SettingConfig::SettingConfig(GlobalModel* app) : app_(app) {
+    bindLumaSession();
+}
+
+void SettingConfig::bindLumaSession() {
+    requests_.reset();
     auto client = app_->luma();
     if (!client) {
         return;

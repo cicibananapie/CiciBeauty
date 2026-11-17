@@ -12,6 +12,14 @@
 #include "../qstringconv.h"
 
 AssetsMgr::AssetsMgr(GlobalModel* app) : app_(app) {
+    bindLumaSession();
+}
+
+void AssetsMgr::bindLumaSession() {
+    requests_.reset();
+    for (const auto& [hash, status] : effectPackages_) {
+        status->querying_ = false;
+    }
     auto client = app_->luma();
     if (!client) {
         return;
@@ -23,6 +31,17 @@ AssetsMgr::AssetsMgr(GlobalModel* app) : app_(app) {
         },
         [this]() {
             onClosed();
+        },
+        [this]() {
+            for (const auto& [hash, status] : effectPackages_) {
+                effectPackageStatus(status->package());
+            }
+            for (const auto& [url, status] : remoteImages_) {
+                if (status->state() == RemoteImageState::Failed) {
+                    status->setState(RemoteImageState::Loading);
+                    startRemoteImageRequest(status);
+                }
+            }
         });
 }
 
@@ -118,8 +137,8 @@ void AssetsMgr::startRemoteImageRequest(const std::shared_ptr<RemoteImageStatus>
         status->setState(RemoteImageState::Failed);
         return;
     }
-    client->callAsync(
-        status.get(), "assets.requestRemoteImage", {{"url", to_json(to_u8(status->url()))}},
+    requests_.callAsync(
+        app_, u8"image:" + to_u8(status->url()), "assets.requestRemoteImage", {{"url", to_json(to_u8(status->url()))}},
         [status = status.get()](cici::protocol::CallResult result) {
             if (result.ok() && result.body.contains("localPath") && result.body["localPath"].is_string() &&
                 !result.body["localPath"].get_ref<const std::string&>().empty()) {
@@ -151,8 +170,9 @@ EffectPackageStatus* AssetsMgr::effectPackageStatus(const EffectAsset& package) 
             status->querying_ = false;
             return status;
         }
-        client->callAsync(
-            status, "assets.queryEffectPackageStatus", {{"package", cici::protocol::assetJson(package)}},
+        requests_.callAsync(
+            app_, u8"package:" + package.sha256_, "assets.queryEffectPackageStatus",
+            {{"package", cici::protocol::assetJson(package)}},
             [status](cici::protocol::CallResult result) {
                 status->querying_ = false;
                 EffectPackageState state;
@@ -199,12 +219,14 @@ void AssetsMgr::onMessage(const cici::protocol::JsonMessage& message) {
 }
 
 void AssetsMgr::onClosed() {
+    requests_.reset();
     for (const auto& [url, status] : remoteImages_) {
         if (status->state() == RemoteImageState::Loading) {
             status->setState(RemoteImageState::Failed);
         }
     }
     for (const auto& [hash, status] : effectPackages_) {
+        status->querying_ = false;
         status->setState(EffectPackageState::Unknown);
     }
 }

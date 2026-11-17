@@ -41,6 +41,7 @@ class SettingConfig final : public ISettingConfig {
 public:
   explicit SettingConfig(GlobalModel* app);
   ~SettingConfig() override;
+  void bindLumaSession();
   bool isReady() const override {
       return ready_;
   }

@@ -16,6 +16,7 @@
 #include <QMetaType>
 #include <QObject>
 
+#include "../lumaclient.h"
 #include "protocol/assets.h"
 
 class QPixmap;
@@ -86,6 +87,7 @@ public:
     AssetsMgr& operator=(const AssetsMgr&) = delete;
     
 public:
+    void bindLumaSession();
     QPixmap image(const QString& path);
     RemoteImageStatus* requestRemoteImage(const QString& url);
 
@@ -104,4 +106,5 @@ private:
     QMap<QString, QPixmap> imageCache_;
     std::map<std::u8string, std::shared_ptr<RemoteImageStatus>> remoteImages_;
     std::map<std::u8string, std::shared_ptr<EffectPackageStatus>> effectPackages_;
+    LumaRequestScope requests_;
 };

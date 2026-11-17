@@ -17,6 +17,7 @@ public:
   explicit LoginLogic(GlobalModel* app, QObject* parent);
   ~LoginLogic() override;
 
+  void bindLumaSession();
   void openProfilePage();
   void autoLogin();
   void login();

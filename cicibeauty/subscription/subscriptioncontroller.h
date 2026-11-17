@@ -16,6 +16,7 @@ public:
     explicit SubscriptionController(GlobalModel* app);
     ~SubscriptionController() override;
 
+    void bindLumaSession();
     void refresh();
     void openPurchasePage();
     const std::u8string& uid() const {

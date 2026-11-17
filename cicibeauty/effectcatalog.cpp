@@ -25,6 +25,7 @@ EffectCatalog::~EffectCatalog() {
 }
 
 void EffectCatalog::load() {
+    requests_.reset();
     auto client = app_->luma();
     if (!client) {
         return;
@@ -33,15 +34,12 @@ void EffectCatalog::load() {
         this,
         {},
         [this]() {
+            requests_.reset();
             ready_ = false;
             LogWarn << "effect catalog service disconnected" << logEnd;
         },
         [this]() {
-            auto client = app_->luma();
-            if (!client) {
-                return;
-            }
-            client->callAsync(&requestOwner_, "catalog.getSnapshot", nlohmann::json::object(),
+            requests_.callAsync(app_, u8"snapshot", "catalog.getSnapshot", nlohmann::json::object(),
                 [this](cici::protocol::CallResult result) {
                     if (!result.ok()) {
                         LogError << "request effect catalog snapshot failed" << logEnd;

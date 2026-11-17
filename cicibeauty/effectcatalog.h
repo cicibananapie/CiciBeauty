@@ -10,8 +10,7 @@
 #include <unordered_map>
 #include <vector>
 
-#include <QObject>
-
+#include "lumaclient.h"
 #include "protocol/assets.h"
 
 class GlobalModel;
@@ -49,7 +48,7 @@ private:
     bool applySnapshot(const nlohmann::json& body);
 
     GlobalModel* app_;
-    QObject requestOwner_;
+    LumaRequestScope requests_;
     nlohmann::json catalogs_ = nlohmann::json::object();
     std::vector<EffectInfo> effects_;
     std::unordered_map<uint64_t, size_t> effectIndex_;
