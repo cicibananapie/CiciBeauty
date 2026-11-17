@@ -12,7 +12,6 @@
 #include "../qstringconv.h"
 
 AssetsMgr::AssetsMgr(GlobalModel* app) : app_(app) {
-    bindLumaSession();
 }
 
 void AssetsMgr::bindLumaSession() {

@@ -11,7 +11,6 @@
 using namespace cici::protocol;
 
 SubscriptionController::SubscriptionController(GlobalModel* app) : app_(app) {
-    bindLumaSession();
 }
 
 void SubscriptionController::bindLumaSession() {

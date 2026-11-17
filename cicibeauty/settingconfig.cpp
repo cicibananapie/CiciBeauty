@@ -13,7 +13,6 @@
 using namespace cici::protocol;
 
 SettingConfig::SettingConfig(GlobalModel* app) : app_(app) {
-    bindLumaSession();
 }
 
 void SettingConfig::bindLumaSession() {

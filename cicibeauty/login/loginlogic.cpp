@@ -20,7 +20,6 @@ bool LoginLogic::post(std::string_view method) {
 }
 
 LoginLogic::LoginLogic(GlobalModel* app, QObject* parent) : QObject(parent), app_(app) {
-    bindLumaSession();
 }
 
 void LoginLogic::bindLumaSession() {
