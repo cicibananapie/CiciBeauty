@@ -57,6 +57,7 @@ private:
 
     const std::u8string filterUuid_;
     std::u8string parentUuid_;
+    std::atomic_bool working_ = false;
 
     std::unique_ptr<ObsInfo> obsInfo_;
     std::unique_ptr<VideoClient> video_;
