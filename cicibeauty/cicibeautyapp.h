@@ -96,6 +96,8 @@ public:
 private:
     void startGlobalServices();
     void stopGlobalServices();
+    void startLumaSession();
+    void stopLumaSession();
     void onLumaClosed();
 
     void ensureLoginLogic();
@@ -142,6 +144,7 @@ private:    //GlobalModel
 private:
     mutable std::recursive_mutex lumaMutex_;
     LumaClient* luma_ = nullptr;
+    bool lumaStopRequested_ = false; // Main-thread intent for the current session.
     QPointer<QWidget> dockContainer_;
     QPointer<SettingController> settingWidget_;
     std::unique_ptr<ContextBarEntryController> contextBarEntry_;

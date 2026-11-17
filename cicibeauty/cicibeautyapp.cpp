@@ -807,26 +807,7 @@ void CiciBeautyApp::startGlobalServices() {
         return;
     }
 
-    const auto startedAtMs =
-        std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch())
-            .count();
-
-    const char* obsVersion = obs_get_version_string();
-    auto* client = new LumaClient(this);
-    {
-        std::lock_guard lock(lumaMutex_);
-        luma_ = client;
-    }
-    client->addListener(this, {}, [this]() {
-        onLumaClosed();
-    });
-    if (client->start()) {
-        client->postMsg(cici::protocol::initializeSession("obs", obsVersion != nullptr ? obsVersion : "",
-                                                                         ProcessThreadOp::pid(), startedAtMs,
-                                                                         to_char(std::u8string(CICI_VERSION)),
-                                                                         isOfficialBuild(),
-                                                                         to_char(std::u8string(CICI_CHANNEL_ID))));
-    }
+    startLumaSession();
     CiciReport::reportEvent(this, KEVT_APP_LAUNCH, nlohmann::json::object({
         {"launch_source", "obs_plugin"},
         {"official_build", isOfficialBuild()},
@@ -851,6 +832,9 @@ void CiciBeautyApp::stopGlobalServices() {
     if (!globalStarted_) {
         return;
     }
+
+    // Mark intent before teardown, which can also deliver a pending close notification.
+    lumaStopRequested_ = true;
 
     const auto shutdownStartedAt = std::chrono::steady_clock::now();
     auto runShutdownPhase = [&shutdownStartedAt](const char* phase, auto&& action) {
@@ -919,14 +903,7 @@ void CiciBeautyApp::stopGlobalServices() {
         }));
     });
     runShutdownPhase("luma_stop", [this]() {
-        LumaClient* client;
-        {
-            std::lock_guard lock(lumaMutex_);
-            client = luma_;
-        }
-        if (client) {
-            client->stop();
-        }
+        stopLumaSession();
     });
 
     globalStarted_ = false;
@@ -938,6 +915,45 @@ void CiciBeautyApp::stopGlobalServices() {
 }
 
 
+void CiciBeautyApp::startLumaSession() {
+    LumaClient* client;
+    {
+        std::lock_guard lock(lumaMutex_);
+        if (luma_ != nullptr) {
+            return;
+        }
+        lumaStopRequested_ = false;
+        client = new LumaClient(this);
+        luma_ = client;
+    }
+    client->addListener(this, {}, [this]() {
+        onLumaClosed();
+    });
+
+    const auto startedAtMs =
+        std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch())
+            .count();
+    const char* obsVersion = obs_get_version_string();
+    if (client->start()) {
+        client->postMsg(cici::protocol::initializeSession("obs", obsVersion != nullptr ? obsVersion : "",
+                                                        ProcessThreadOp::pid(), startedAtMs,
+                                                        to_char(std::u8string(CICI_VERSION)), isOfficialBuild(),
+                                                        to_char(std::u8string(CICI_CHANNEL_ID))));
+    }
+}
+
+void CiciBeautyApp::stopLumaSession() {
+    lumaStopRequested_ = true;
+    LumaClient* client;
+    {
+        std::lock_guard lock(lumaMutex_);
+        client = luma_;
+    }
+    if (client) {
+        client->stop();
+    }
+}
+
 void CiciBeautyApp::onLumaClosed() {
     LumaClient* client;
     {
@@ -945,6 +961,7 @@ void CiciBeautyApp::onLumaClosed() {
         client = std::exchange(luma_, nullptr);
     }
     if (client) {
+        LogInfo << "luma session closed, intentional=" << lumaStopRequested_ << logEnd;
         // Finish the current IPC callback before destroying the client.
         client->deleteLater();
     }
