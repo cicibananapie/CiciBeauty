@@ -18,15 +18,14 @@ namespace cici::protocol {
 // Configuration data is returned only in request replies; reads in the UI use the local mirror.
 // Mutations carry the cached uid so queued work cannot change another account.
 //
-// Each instance owns its configuration, keyed by instanceId.
-// Instance posts: create {instanceId, videoChannel, sourceUuid?, sourceType?}, destroy {instanceId},
+// Instances and configurations share the parent video source UUID as instanceId.
+// Instance posts: create {instanceId, videoChannel, sourceType?}, destroy {instanceId},
 // setMode {instanceId, mode: 1(horizontal)/2(vertical)}, retryPackage {instanceId, effectId}.
 // Instance calls: queryParamValues {instanceId, paths, defaultOnly?} -> {values};
 // canActivateEffect {instanceId, effectId} -> {allowed, disablePatch}.
 // disablePatch contains add operations to disable conflicts; the query does not mutate settings.
 
-// OBS supplies the Cici filter UUID as instanceId.
-// sourceUuid is parent-source metadata and is not used to identify configurations.
+// OBS filter UUIDs remain local to the plugin and are not sent to luma.
 inline bool readSettingsKey(const nlohmann::json& body, const char* field, std::u8string& id) {
     const auto it = body.find(field);
     if (it == body.end() || !it->is_string()) {

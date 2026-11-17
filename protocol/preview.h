@@ -16,6 +16,7 @@ enum class PreviewSource : uint32_t {
 
 inline constexpr uint32_t kPreviewSlots = 3;
 
+// instanceId is the parent video source UUID, shared with settings and instance messages.
 // preview.autoKeying: request {instanceId}, asynchronous reply {rgba, similarity}.
 // preview.pickColor: request {instanceId, previewId, x, y}, asynchronous reply {rgba}.
 // preview.open: request {instanceId, previewId, channel, source, width, height},

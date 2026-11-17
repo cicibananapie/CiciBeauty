@@ -664,6 +664,7 @@ void GPURenderWidget::registerNativeWindow() {
 		return;
 	}
 
+    const auto instanceId = model->sourceUuid();
     auto client = app_->luma();
     if (!client) {
         return;
@@ -699,7 +700,7 @@ void GPURenderWidget::registerNativeWindow() {
     ::ShowWindow(reinterpret_cast<HWND>(nativeHandle_), SW_SHOW);
 #endif
     nativeRenderModel_ = model;
-    instanceId_ = model->filterUuid();
+    instanceId_ = instanceId;
     previewId_ = CiciUUID::generate();
     preview_ = std::make_unique<Preview>();
     preview_->renderSize = QSize(w, h);
@@ -839,20 +840,21 @@ void GPURenderWidget::autoKeying(GlobalModel* app, QObject* owner, std::function
     if (!model) {
         return;
     }
-    const auto instance = model->filterUuid();
+    const auto instance = model->sourceUuid();
+    const auto filterUuid = model->filterUuid();
     auto client = app->luma();
     if (!client) {
         return;
     }
     client->callAsync(owner, "preview.autoKeying", {{"instanceId", to_char(instance)}},
-        [instance, app, callback = std::move(callback)](CallResult result) {
+        [filterUuid, app, callback = std::move(callback)](CallResult result) {
             const auto& body = result.body;
             if (!result.ok() || !body.contains("rgba") || !body["rgba"].is_number_unsigned() ||
                 !body.contains("similarity") || !body["similarity"].is_number()) {
                 LogWarn << "Auto keying request failed, status=" << static_cast<int>(result.status) << logEnd;
                 return;
             }
-            if (app->filterModel() && app->filterModel()->filterUuid() == instance) {
+            if (app->filterModel() && app->filterModel()->filterUuid() == filterUuid) {
                 callback(body["rgba"].get<uint32_t>(), body["similarity"].get<float>());
             }
         });

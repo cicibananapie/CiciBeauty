@@ -224,7 +224,6 @@ nlohmann::json filterEventProperties(const std::u8string& trigger,
                                      const char* result,
                                      const char* failureReason,
                                      obs_source_t* source,
-                                     std::u8string_view filterUuid = {},
                                      const std::u8string& sourceUuidFallback = {}) {
     const std::u8string sourceUuid = source != nullptr ? obsSourceUuid(source) : sourceUuidFallback;
     nlohmann::json props = nlohmann::json::object({
@@ -244,10 +243,6 @@ nlohmann::json filterEventProperties(const std::u8string& trigger,
             props["source_type"] = to_char(sourceType);
         }
     }
-    if (!filterUuid.empty()) {
-        props["filter_uuid"] = to_json(std::u8string(filterUuid));
-    }
-
     return props;
 }
 }  // namespace
@@ -446,20 +441,20 @@ bool CiciBeautyApp::applyCiciFilterToSource(const std::u8string& sourceUuid,
     obs_source_t* source = obs_get_source_by_uuid(to_char(sourceUuid));
     if (source == nullptr) {
         CiciReport::reportEvent(this, KEVT_APP_FILTER_APPLY, filterEventProperties(
-            trigger, "failed", "source_not_found", nullptr, {}, sourceUuid));
+            trigger, "failed", "source_not_found", nullptr, sourceUuid));
         return false;
     }
 
     if (!isCiciApplicableSource(source)) {
         CiciReport::reportEvent(this, KEVT_APP_FILTER_APPLY, filterEventProperties(
-            trigger, "failed", "source_not_applicable", source, {}, sourceUuid));
+            trigger, "failed", "source_not_applicable", source, sourceUuid));
         obs_source_release(source);
         return false;
     }
 
     if (hasCiciFilter(source)) {
         CiciReport::reportEvent(this, KEVT_APP_FILTER_APPLY, filterEventProperties(
-            trigger, "failed", "already_has_filter", source, {}, sourceUuid));
+            trigger, "failed", "already_has_filter", source, sourceUuid));
         obs_source_release(source);
         return false;
     }
@@ -469,7 +464,7 @@ bool CiciBeautyApp::applyCiciFilterToSource(const std::u8string& sourceUuid,
     if (filter == nullptr) {
         LogError << "applyCiciFilterToSource failed to create filter" << logEnd;
         CiciReport::reportEvent(this, KEVT_APP_FILTER_APPLY, filterEventProperties(
-            trigger, "failed", "create_filter_failed", source, {}, sourceUuid));
+            trigger, "failed", "create_filter_failed", source, sourceUuid));
         obs_source_release(source);
         return false;
     }
@@ -497,14 +492,14 @@ bool CiciBeautyApp::removeCiciFilterFromSource(const std::u8string& sourceUuid,
     obs_source_t* source = obs_get_source_by_uuid(to_char(sourceUuid));
     if (source == nullptr) {
         CiciReport::reportEvent(this, KEVT_APP_FILTER_REMOVE, filterEventProperties(
-            trigger, "failed", "source_not_found", nullptr, {}, sourceUuid));
+            trigger, "failed", "source_not_found", nullptr, sourceUuid));
         return false;
     }
 
     obs_source_t* filter = ciciFilterFromSource(source);
     if (filter == nullptr) {
         CiciReport::reportEvent(this, KEVT_APP_FILTER_REMOVE, filterEventProperties(
-            trigger, "failed", "filter_not_found", source, {}, sourceUuid));
+            trigger, "failed", "filter_not_found", source, sourceUuid));
         obs_source_release(source);
         return false;
     }
@@ -750,7 +745,7 @@ void CiciBeautyApp::onFilterRemove(void *data, obs_source_t *source) {
             << " trigger=" << trigger << logEnd;
     if (trigger != kDuplicateFilterRejected) {
         CiciReport::reportEvent(instance->app(), KEVT_APP_FILTER_REMOVE, filterEventProperties(
-            trigger, "success", nullptr, source, instance->filterUuid()));
+            trigger, "success", nullptr, source));
     }
     instance->onFilterRemove();
     instance->app()->scheduleCiciFilterChanged(sourceUuid);
@@ -790,8 +785,7 @@ void CiciBeautyApp::onFilterAdd(void *data, obs_source_t *source) {
         obs_source_release(scan.addedFilterRef);
 
         auto properties = filterEventProperties(
-            trigger, "failed", "already_has_filter", source, addedFilterUuid);
-        properties["existing_filter_uuid"] = to_char(scan.otherCiciFilterUuid);
+            trigger, "failed", "already_has_filter", source);
         CiciReport::reportEvent(instance->app(), KEVT_APP_FILTER_APPLY, properties);
         return;
     }
@@ -803,7 +797,7 @@ void CiciBeautyApp::onFilterAdd(void *data, obs_source_t *source) {
             << " filter_uuid=" << addedFilterUuid
             << " trigger=" << trigger << logEnd;
     CiciReport::reportEvent(instance->app(), KEVT_APP_FILTER_APPLY, filterEventProperties(
-        trigger, "success", nullptr, source, addedFilterUuid));
+        trigger, "success", nullptr, source));
     instance->app()->scheduleCiciFilterChanged(sourceUuid);
     obs_source_release(scan.addedFilterRef);
 }

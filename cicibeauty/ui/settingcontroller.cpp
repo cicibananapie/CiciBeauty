@@ -405,7 +405,7 @@ void SettingController::createUI() {
                      this, &SettingController::updateAccessOverlay);
     QObject::connect(app_->settingConfig(), &ISettingConfig::configAdjusted, this,
                      [this](const std::u8string& id) {
-        if (id == selectedCiciFilterUuid()) {
+        if (id == selectedSourceUuid()) {
             loadSettingConfig(selectedSourceUuid());
         }
     });
@@ -571,7 +571,7 @@ bool SettingController::resolveEffectConflicts(const nlohmann::json& disablePatc
         applySettingPatch(nlohmann::json::array({operation}));
     }
 
-    const nlohmann::json resolvedConfig = app_->settingConfig()->config(filterUuid);
+    const nlohmann::json resolvedConfig = app_->settingConfig()->config(selectedSourceUuid());
     for (const int page : affectedPages) {
         syncPageFromConfig(page, resolvedConfig);
     }
@@ -625,8 +625,8 @@ void SettingController::loadSettingConfig(const std::u8string& sourceUuid) {
     }
 
     LogDebug << "Setting config load source_uuid=" << sourceUuid << logEnd;
-    app_->settingConfig()->refreshConfig(filterUuid);
-    const nlohmann::json config = app_->settingConfig()->config(filterUuid);
+    app_->settingConfig()->refreshConfig(sourceUuid);
+    const nlohmann::json config = app_->settingConfig()->config(sourceUuid);
     this->json2Me(config);
 }
 
@@ -1070,16 +1070,16 @@ void SettingController::onCiciFilterChanged(const std::u8string& sourceUuid) {
 
 void SettingController::onTabCurrentRowChanged(int row) {
     assert(isSettingTabEnabled(row));
-    const std::u8string filterUuid = selectedCiciFilterUuid();
-    assert(!filterUuid.empty());
-    if (filterUuid.empty()) {
+    const std::u8string sourceUuid = selectedSourceUuid();
+    assert(!sourceUuid.empty());
+    if (sourceUuid.empty()) {
         return;
     }
 
-    nlohmann::json config = app_->settingConfig()->config(filterUuid);
+    nlohmann::json config = app_->settingConfig()->config(sourceUuid);
     config["version"] = 1;
     config["selected"] = row;
-    app_->settingConfig()->applyPatch(filterUuid, JsonUtility::Patch::add(u8"/selected", row));
+    app_->settingConfig()->applyPatch(sourceUuid, JsonUtility::Patch::add(u8"/selected", row));
 
     const bool created = ensurePageCreated(row);
     if (created) {
@@ -1209,7 +1209,7 @@ nlohmann::json SettingController::activeSettingConfig(const SettingTarget& targe
         return nlohmann::json::object();
     }
 
-    nlohmann::json config = app_->settingConfig()->config(target.filterUuid);
+    nlohmann::json config = app_->settingConfig()->config(target.sourceUuid);
     config["version"] = 1;
     config["selected"] = tabBar_->currentRow();
     return config;
@@ -1244,7 +1244,7 @@ void SettingController::importActiveSettingConfig(
     if (!settingConfig->replaceFavorites(favorites, acknowledged)) {
         acknowledged(false);
     }
-    if (settingConfig->setConfig(target.filterUuid, config, acknowledged)) {
+    if (settingConfig->setConfig(target.sourceUuid, config, acknowledged)) {
         json2Me(config);
         reloadFavoriteViews();
     } else {

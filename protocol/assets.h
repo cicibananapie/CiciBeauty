@@ -26,7 +26,6 @@ struct EffectAsset {
 struct EffectOperationContext {
     uint64_t effectId = 0;
     std::u8string sourceUuid;
-    std::u8string filterUuid;
     std::u8string trigger;
     std::u8string packageSource;
     bool retry = false;
@@ -64,7 +63,6 @@ inline bool readAsset(const nlohmann::json& value, EffectAsset& asset) {
 inline nlohmann::json assetContextJson(const EffectOperationContext& context) {
     return {{"effectId", context.effectId},
             {"sourceUuid", to_json(context.sourceUuid)},
-            {"filterUuid", to_json(context.filterUuid)},
             {"trigger", to_json(context.trigger)},
             {"packageSource", to_json(context.packageSource)},
             {"retry", context.retry}};
@@ -75,14 +73,13 @@ inline bool readAssetContext(const nlohmann::json& value, EffectOperationContext
         !value.contains("retry") || !value["retry"].is_boolean()) {
         return false;
     }
-    for (const char* field : {"sourceUuid", "filterUuid", "trigger", "packageSource"}) {
+    for (const char* field : {"sourceUuid", "trigger", "packageSource"}) {
         if (!value.contains(field) || !value[field].is_string()) {
             return false;
         }
     }
     context = {value["effectId"].get<uint64_t>(),
                to_u8(value["sourceUuid"].get<std::string>()),
-               to_u8(value["filterUuid"].get<std::string>()),
                to_u8(value["trigger"].get<std::string>()),
                to_u8(value["packageSource"].get<std::string>()),
                value["retry"].get<bool>()};

@@ -14,6 +14,7 @@
 class ISettingConfig : public QObject {
     Q_OBJECT
 public:
+  // Configuration IDs are parent video source UUIDs, not OBS filter UUIDs.
   virtual ~ISettingConfig() = default;
   virtual bool isReady() const = 0;
   virtual nlohmann::json defaultConfig() const = 0;

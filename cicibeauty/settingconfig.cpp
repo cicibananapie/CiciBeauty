@@ -86,7 +86,7 @@ void SettingConfig::updateSnapshot(const nlohmann::json& body) {
     for (const auto& [id, value] : body["configs"].items()) {
         std::u8string key;
         if (!readSettingsKey({{"instanceId", id}}, "instanceId", key) || !value.is_object()) {
-            LogWarn << "invalid instance in settings snapshot" << logEnd;
+            LogWarn << "invalid source configuration in settings snapshot" << logEnd;
             return;
         }
         configs.emplace(std::move(key), value);
