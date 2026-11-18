@@ -28,6 +28,40 @@ constexpr const char *kEmptySpaceName = "emptySpace";
 constexpr const char *kSourcePropertiesButtonName = "sourcePropertiesButton";
 constexpr const char *kContextEntryButtonName = "ciciBeautyContextEntryButton";
 
+enum class Tone {
+    Neutral,
+    Danger,
+    Success,
+    Trial,
+    Confirming
+};
+
+ContextBarEntryButton::StatusColors colorsForTone(Tone tone) {
+    switch (tone) {
+    case Tone::Danger:
+        return {QColor(QStringLiteral("#7D4F59")),
+                QColor(QStringLiteral("#CF8A94")),
+                QColor(QStringLiteral("#49343B"))};
+    case Tone::Success:
+        return {QColor(QStringLiteral("#4D755C")),
+                QColor(QStringLiteral("#82BD96")),
+                QColor(QStringLiteral("#30463A"))};
+    case Tone::Trial:
+        return {QColor(QStringLiteral("#806C43")),
+                QColor(QStringLiteral("#CEB774")),
+                QColor(QStringLiteral("#49412F"))};
+    case Tone::Confirming:
+        return {QColor(QStringLiteral("#536B8A")),
+                QColor(QStringLiteral("#89A6CF")),
+                QColor(QStringLiteral("#344155"))};
+    case Tone::Neutral:
+        break;
+    }
+    return {QColor(QStringLiteral("#596273")),
+            QColor(QStringLiteral("#929BA8")),
+            QColor(QStringLiteral("#353B47"))};
+}
+
 QMainWindow *obsMainWindow() {
     auto *widget = reinterpret_cast<QWidget *>(obs_frontend_get_main_window());
     return qobject_cast<QMainWindow *>(widget);
@@ -102,6 +136,16 @@ void ContextBarEntryController::detach() {
     mainWindow_ = nullptr;
 }
 
+void ContextBarEntryController::setRecoveryState(LumaRecoveryUiState state) {
+    if (recoveryState_ == state) {
+        return;
+    }
+    recoveryState_ = state;
+    if (button_ != nullptr) {
+        updateStatus(button_);
+    }
+}
+
 ContextBarEntryButton *ContextBarEntryController::createButton(QWidget *parent) const {
     auto *button = new ContextBarEntryButton(parent);
     button->setObjectName(kContextEntryButtonName);
@@ -141,21 +185,34 @@ void ContextBarEntryController::bindSubscriptionState(ContextBarEntryButton* but
                      &SubscriptionController::subscriptionInfoUpdated,
                      button,
                      [this, button]() {
-                         updateSubscriptionState(button);
+                         updateStatus(button);
                      });
     QObject::connect(subscriptionController_,
                      &SubscriptionController::aboutToExpire,
                      button,
                      [this, button](SubscriptionType, uint32_t) {
-                         updateSubscriptionState(button);
+                         updateStatus(button);
                      });
-    updateSubscriptionState(button);
+    updateStatus(button);
 }
 
-void ContextBarEntryController::updateSubscriptionState(ContextBarEntryButton* button) const {
+void ContextBarEntryController::updateStatus(ContextBarEntryButton* button) const {
+    switch (recoveryState_) {
+    case LumaRecoveryUiState::Recovering:
+        button->setStatus(QObject::tr("Recovering"), colorsForTone(Tone::Confirming));
+        button->setToolTip(QObject::tr("Recovering the CiciBeauty service"));
+        return;
+    case LumaRecoveryUiState::Paused:
+        button->setStatus(QObject::tr("Unavailable"), colorsForTone(Tone::Danger));
+        button->setToolTip(QObject::tr("CiciBeauty is temporarily unavailable"));
+        return;
+    case LumaRecoveryUiState::None:
+        break;
+    }
+
     QString statusText;
     QString tooltip = QObject::tr("Open Cici Beauty");
-    ContextBarEntryButton::Tone tone = ContextBarEntryButton::Tone::Neutral;
+    Tone tone = Tone::Neutral;
 
     if (subscriptionController_->uid().empty()) {
         statusText = QObject::tr("Not signed in");
@@ -166,17 +223,17 @@ void ContextBarEntryController::updateSubscriptionState(ContextBarEntryButton* b
         if (type == Temporary) {
             statusText = QObject::tr("Confirming membership status");
             tooltip = QObject::tr("Confirming membership status");
-            tone = ContextBarEntryButton::Tone::Confirming;
+            tone = Tone::Confirming;
         }
         else if (type == NotSubscribed) {
             statusText = QObject::tr("Not subscribed");
             tooltip = QObject::tr("Cici Beauty membership is not activated");
-            tone = ContextBarEntryButton::Tone::Danger;
+            tone = Tone::Danger;
         }
         else if (type == Expired) {
             statusText = QObject::tr("Membership expired");
             tooltip = QObject::tr("Cici Beauty membership has expired");
-            tone = ContextBarEntryButton::Tone::Danger;
+            tone = Tone::Danger;
         }
         else if (type == Trial && subscriptionController_->isVip()) {
             statusText = QObject::tr("Trial · %1 days")
@@ -184,17 +241,17 @@ void ContextBarEntryController::updateSubscriptionState(ContextBarEntryButton* b
             tooltip = QObject::tr("%1 membership, expires %2")
                 .arg(SubscriptionUi::membershipTypeName(type),
                      SubscriptionUi::expirationDate(subscriptionController_->subscriptionInfo()));
-            tone = ContextBarEntryButton::Tone::Trial;
+            tone = Tone::Trial;
         }
         else if (subscriptionController_->isVip()) {
             statusText = QStringLiteral("VIP");
             tooltip = QObject::tr("%1 membership, expires %2")
                 .arg(SubscriptionUi::membershipTypeName(type),
                      SubscriptionUi::expirationDate(subscriptionController_->subscriptionInfo()));
-            tone = ContextBarEntryButton::Tone::Success;
+            tone = Tone::Success;
         }
     }
 
-    button->setStatus(statusText, tone);
+    button->setStatus(statusText, colorsForTone(tone));
     button->setToolTip(tooltip);
 }

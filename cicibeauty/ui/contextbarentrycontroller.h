@@ -8,6 +8,8 @@
 
 #include <QPointer>
 
+#include "../lumarecoveryuistate.h"
+
 class QMainWindow;
 class QWidget;
 class ContextBarEntryButton;
@@ -23,14 +25,16 @@ public:
 
     bool attach();
     void detach();
+    void setRecoveryState(LumaRecoveryUiState state);
 
 private:
     ContextBarEntryButton *createButton(QWidget *parent) const;
     void bindSubscriptionState(ContextBarEntryButton* button) const;
-    void updateSubscriptionState(ContextBarEntryButton* button) const;
+    void updateStatus(ContextBarEntryButton* button) const;
 
     SubscriptionController* subscriptionController_ = nullptr;
     ClickHandler onClick_;
+    LumaRecoveryUiState recoveryState_ = LumaRecoveryUiState::None;
     QPointer<QMainWindow> mainWindow_;
     QPointer<ContextBarEntryButton> button_;
 };

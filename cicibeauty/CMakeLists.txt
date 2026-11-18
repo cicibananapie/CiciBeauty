@@ -22,6 +22,7 @@ set(main_FILES
         settingconfig.cpp
         cicibeautyapp.h
         cicibeautyapp.cpp
+        lumarecoveryuistate.h
         cicibeautyfilterinstance.h
         cicibeautyfilterinstance.cpp
         i18nsupport.h

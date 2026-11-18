@@ -18,6 +18,7 @@
 #include <QPointer>
 #include <obs-frontend-api.h>
 
+#include "lumarecoveryuistate.h"
 #include "modelapp.h"
 #include "../cicibeautyStub/ciciplugin.h"
 
@@ -106,6 +107,8 @@ private:
     void recordLumaFailure();
     bool needRestart() const;
     void restoreLumaFilters();
+    void setRecoveryState(LumaRecoveryUiState state);
+    void updateRecoveryTip();
 
     void ensureLoginLogic();
     void ensureSettingConfig();
@@ -153,6 +156,7 @@ private:
     LumaClient* luma_ = nullptr;
     bool lumaStopRequested_ = false; // Main-thread intent for the current session.
     std::deque<std::chrono::steady_clock::time_point> lumaFailures_;
+    LumaRecoveryUiState lumaRecoveryState_ = LumaRecoveryUiState::None;
     QPointer<QWidget> dockContainer_;
     QPointer<TipsWidget> tipsWidget_;
     QPointer<SettingController> settingWidget_;

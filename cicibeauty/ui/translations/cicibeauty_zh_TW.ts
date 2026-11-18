@@ -1146,6 +1146,22 @@ Qt：%4</translation>
 <context>
     <name>QObject</name>
     <message>
+        <source>Recovering</source>
+        <translation>恢復中</translation>
+    </message>
+    <message>
+        <source>Recovering the CiciBeauty service</source>
+        <translation>正在恢復 CiciBeauty 服務</translation>
+    </message>
+    <message>
+        <source>Unavailable</source>
+        <translation>暫不可用</translation>
+    </message>
+    <message>
+        <source>CiciBeauty is temporarily unavailable</source>
+        <translation>CiciBeauty 暫不可用</translation>
+    </message>
+    <message>
         <source>Cici Beauty</source>
         <translation type="vanished">Cici Beauty</translation>
     </message>

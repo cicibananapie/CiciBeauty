@@ -6,7 +6,6 @@
 
 #include <algorithm>
 
-#include <QColor>
 #include <QEvent>
 #include <QFontMetrics>
 #include <QHBoxLayout>
@@ -14,6 +13,7 @@
 #include <QLinearGradient>
 #include <QPainter>
 #include <QPaintEvent>
+#include <QPalette>
 
 #include "marqueelabel.h"
 #include "commonui.h"
@@ -32,45 +32,11 @@ constexpr int kStatusHorizontalMargin = 8;
 constexpr int kStatusHeight = 20;
 constexpr int kCornerRadius = 5;
 
-struct ToneColors {
-    QColor border;
-    QColor text;
-    QColor statusBackground;
-};
-
-ToneColors colorsForTone(ContextBarEntryButton::Tone tone) {
-    switch (tone) {
-    case ContextBarEntryButton::Tone::Danger:
-        return {QColor(QStringLiteral("#7D4F59")),
-                QColor(QStringLiteral("#CF8A94")),
-                QColor(QStringLiteral("#49343B"))};
-    case ContextBarEntryButton::Tone::Success:
-        return {QColor(QStringLiteral("#4D755C")),
-                QColor(QStringLiteral("#82BD96")),
-                QColor(QStringLiteral("#30463A"))};
-    case ContextBarEntryButton::Tone::Trial:
-        return {QColor(QStringLiteral("#806C43")),
-                QColor(QStringLiteral("#CEB774")),
-                QColor(QStringLiteral("#49412F"))};
-    case ContextBarEntryButton::Tone::Confirming:
-        return {QColor(QStringLiteral("#536B8A")),
-                QColor(QStringLiteral("#89A6CF")),
-                QColor(QStringLiteral("#344155"))};
-    case ContextBarEntryButton::Tone::Neutral:
-        return {QColor(QStringLiteral("#596273")),
-                QColor(QStringLiteral("#929BA8")),
-                QColor(QStringLiteral("#353B47"))};
-    }
-
-    return {QColor(QStringLiteral("#596273")),
-            QColor(QStringLiteral("#929BA8")),
-            QColor(QStringLiteral("#353B47"))};
-}
-
 } // namespace
 
 ContextBarEntryButton::ContextBarEntryButton(QWidget* parent)
-    : QPushButton(parent) {
+    : QPushButton(parent),
+      statusColors_{palette().mid().color(), palette().buttonText().color(), palette().button().color()} {
     setText({});
     setFocusPolicy(Qt::NoFocus);
     setAutoDefault(false);
@@ -149,12 +115,12 @@ void ContextBarEntryButton::followHeightOf(QWidget* widget) {
     syncReferenceHeight();
 }
 
-void ContextBarEntryButton::setStatus(const QString& text, Tone tone) {
-    if (statusLabel_->text() == text && tone_ == tone) {
+void ContextBarEntryButton::setStatus(const QString& text, const StatusColors& colors) {
+    if (statusLabel_->text() == text && statusColors_ == colors) {
         return;
     }
 
-    tone_ = tone;
+    statusColors_ = colors;
     if (text.isEmpty()) {
         statusLabel_->clear();
         statusContainer_->setMaximumWidth(0);
@@ -175,10 +141,6 @@ void ContextBarEntryButton::setStatus(const QString& text, Tone tone) {
 
 QString ContextBarEntryButton::statusText() const {
     return statusLabel_->text();
-}
-
-ContextBarEntryButton::Tone ContextBarEntryButton::tone() const {
-    return tone_;
 }
 
 bool ContextBarEntryButton::eventFilter(QObject* watched, QEvent* event) {
@@ -214,8 +176,7 @@ QSize ContextBarEntryButton::sizeHint() const {
 void ContextBarEntryButton::paintEvent(QPaintEvent* event) {
     Q_UNUSED(event);
 
-    const ToneColors colors = colorsForTone(tone_);
-    QColor borderColor = colors.border;
+    QColor borderColor = statusColors_.border;
     QColor backgroundTop(QStringLiteral("#303541"));
     QColor backgroundBottom(QStringLiteral("#292E39"));
     if (isDown()) {
@@ -285,19 +246,18 @@ void ContextBarEntryButton::syncReferenceHeight() {
 }
 
 void ContextBarEntryButton::updateStatusColor() {
-    const ToneColors colors = colorsForTone(tone_);
-    const QColor statusTop = colors.statusBackground.lighter(106);
-    const QColor statusBottom = colors.statusBackground.darker(108);
-    const QColor statusBorder = colors.statusBackground.lighter(118);
+    const QColor statusTop = statusColors_.background.lighter(106);
+    const QColor statusBottom = statusColors_.background.darker(108);
+    const QColor statusBorder = statusColors_.background.lighter(118);
     statusLabel_->setStyleSheet(QStringLiteral(
         "color: %1; background-color: transparent; border: none; font-weight: 500;")
-        .arg(colors.text.name()));
+        .arg(statusColors_.text.name()));
     statusContainer_->setStyleSheet(QStringLiteral(
         "background: qlineargradient(x1: 0, y1: 0, x2: 0, y2: 1,"
         "                            stop: 0 %1, stop: 0.55 %2, stop: 1 %3);"
         "border: 1px solid %4; border-radius: %5px;")
         .arg(statusTop.name(),
-             colors.statusBackground.name(),
+             statusColors_.background.name(),
              statusBottom.name(),
              statusBorder.name())
         .arg(kStatusHeight / 2));

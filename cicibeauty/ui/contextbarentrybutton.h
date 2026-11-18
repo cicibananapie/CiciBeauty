@@ -4,6 +4,7 @@
 
 #pragma once
 
+#include <QColor>
 #include <QPointer>
 #include <QPushButton>
 
@@ -16,20 +17,19 @@ class ContextBarEntryButton : public QPushButton {
     Q_OBJECT
 
 public:
-    enum class Tone {
-        Neutral,
-        Danger,
-        Success,
-        Trial,
-        Confirming
+    struct StatusColors {
+        QColor border;
+        QColor text;
+        QColor background;
+
+        bool operator==(const StatusColors&) const = default;
     };
 
     explicit ContextBarEntryButton(QWidget* parent = nullptr);
 
     void followHeightOf(QWidget* widget);
-    void setStatus(const QString& text, Tone tone);
+    void setStatus(const QString& text, const StatusColors& colors);
     QString statusText() const;
-    Tone tone() const;
 
     QSize sizeHint() const override;
 
@@ -47,5 +47,5 @@ private:
     QWidget* statusContainer_ = nullptr;
     MarqueeLabel* statusLabel_ = nullptr;
     QPointer<QWidget> heightReference_;
-    Tone tone_ = Tone::Neutral;
+    StatusColors statusColors_;
 };

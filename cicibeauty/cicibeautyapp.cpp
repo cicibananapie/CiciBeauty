@@ -570,6 +570,7 @@ void CiciBeautyApp::ensureDockCreated() {
 
     tipsWidget_ = new TipsWidget(dockContainer_);
     layout->addWidget(tipsWidget_);
+    updateRecoveryTip();
     createSettingWidget();
     if (auto* dock = mainWin->findChild<QDockWidget*>(kDockId);
         dock != nullptr) {
@@ -594,6 +595,7 @@ bool CiciBeautyApp::ensureContextBarEntryAttached() {
                 reportSettingsOpen(this, SettingsOpenEntry::ContextBar);
                 showCici();
             });
+        contextBarEntry_->setRecoveryState(lumaRecoveryState_);
     }
 
     return contextBarEntry_->attach();
@@ -820,6 +822,7 @@ void CiciBeautyApp::startGlobalServices() {
     ensureEffectCatalog();
 
     lumaStopRequested_ = false;
+    setRecoveryState(LumaRecoveryUiState::None);
     startLumaSession(false);
     CiciReport::reportEvent(this, KEVT_APP_LAUNCH, nlohmann::json::object({
         {"launch_source", "obs_plugin"},
@@ -933,6 +936,7 @@ void CiciBeautyApp::startLumaSession(bool restoreFilters) {
     if (restoreFilters) {
         connected = [this]() {
             restoreLumaFilters();
+            setRecoveryState(LumaRecoveryUiState::None);
         };
     }
     client->addListener(this, {}, [this]() {
@@ -988,10 +992,12 @@ void CiciBeautyApp::onLumaClosed() {
     }
     recordLumaFailure();
     if (!needRestart()) {
+        setRecoveryState(LumaRecoveryUiState::Paused);
         LogWarn << "Luma automatic restart paused; recent failures=" << lumaFailures_.size() << logEnd;
         return;
     }
 
+    setRecoveryState(LumaRecoveryUiState::Recovering);
     // Let the old client finish notifying its listeners before binding the new one.
     QMetaObject::invokeMethod(this, [this]() {
         if (globalStarted_ && !lumaStopRequested_) {
@@ -1012,6 +1018,34 @@ void CiciBeautyApp::recordLumaFailure() {
 bool CiciBeautyApp::needRestart() const {
     // Call after recording the current failure so expired entries are already removed.
     return lumaFailures_.size() < kLumaFailureLimit;
+}
+
+void CiciBeautyApp::setRecoveryState(LumaRecoveryUiState state) {
+    if (lumaRecoveryState_ == state) {
+        return;
+    }
+    lumaRecoveryState_ = state;
+    updateRecoveryTip();
+    if (contextBarEntry_ != nullptr) {
+        contextBarEntry_->setRecoveryState(state);
+    }
+}
+
+void CiciBeautyApp::updateRecoveryTip() {
+    if (tipsWidget_ == nullptr) {
+        return;
+    }
+    switch (lumaRecoveryState_) {
+    case LumaRecoveryUiState::None:
+        tipsWidget_->hide();
+        break;
+    case LumaRecoveryUiState::Recovering:
+        tipsWidget_->showTip(QObject::tr("Recovering the CiciBeauty service"));
+        break;
+    case LumaRecoveryUiState::Paused:
+        tipsWidget_->showTip(QObject::tr("CiciBeauty is temporarily unavailable"));
+        break;
+    }
 }
 
 void CiciBeautyApp::restoreLumaFilters() {
