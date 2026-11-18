@@ -814,7 +814,7 @@ void CiciBeautyApp::startGlobalServices() {
     ensureUpdater();
     ensureEffectCatalog();
 
-    startLumaSession();
+    startLumaSession(false);
     CiciReport::reportEvent(this, KEVT_APP_LAUNCH, nlohmann::json::object({
         {"launch_source", "obs_plugin"},
         {"official_build", isOfficialBuild()},
@@ -913,7 +913,7 @@ void CiciBeautyApp::stopGlobalServices() {
 }
 
 
-void CiciBeautyApp::startLumaSession() {
+void CiciBeautyApp::startLumaSession(bool restoreFilters) {
     LumaClient* client;
     {
         std::lock_guard lock(lumaMutex_);
@@ -924,9 +924,15 @@ void CiciBeautyApp::startLumaSession() {
         client = new LumaClient(this);
         luma_ = client;
     }
+    std::function<void()> connected;
+    if (restoreFilters) {
+        connected = [this]() {
+            restoreLumaFilters();
+        };
+    }
     client->addListener(this, {}, [this]() {
         onLumaClosed();
-    });
+    }, std::move(connected));
     subscriptionController_->bindLumaSession();
     loginLogic_->bindLumaSession();
     settingConfig_->bindLumaSession();
@@ -966,8 +972,81 @@ void CiciBeautyApp::onLumaClosed() {
     }
     if (client) {
         LogInfo << "luma session closed, intentional=" << lumaStopRequested_ << logEnd;
+        for (const auto& instance : filters_) {
+            instance->working_.store(false);
+        }
+        setCurrentInstance(nullptr);
         // Finish the current IPC callback before destroying the client.
         client->deleteLater();
+    }
+}
+
+void CiciBeautyApp::restoreLumaFilters() {
+    std::vector<std::pair<std::u8string, std::u8string>> oldFilters;
+    for (const auto& instance : filters_) {
+        const auto sourceUuid = instance->sourceUuid();
+        if (!sourceUuid.empty()) {
+            oldFilters.emplace_back(sourceUuid, instance->filterUuid());
+        }
+    }
+    for (const auto& [sourceUuid, filterUuid] : oldFilters) {
+        obs_source_t* source = obs_get_source_by_uuid(to_char(sourceUuid));
+        if (source == nullptr || obs_source_removed(source)) {
+            obs_source_release(source);
+            continue;
+        }
+        obs_source_t* filter = ciciFilterFromSource(source);
+        if (filter == nullptr || obsSourceUuid(filter) != filterUuid) {
+            obs_source_release(filter);
+            obs_source_release(source);
+            continue;
+        }
+        auto* oldInstance = findFilterInstance(filterUuid);
+        assert(oldInstance != nullptr);
+        const int index = obs_source_filter_get_index(source, filter);
+        if (oldInstance == nullptr || index < 0) {
+            obs_source_release(filter);
+            obs_source_release(source);
+            continue;
+        }
+        assert(!oldInstance->working_.load());
+        const auto name = obsString(obs_source_get_name(filter));
+        const bool enabled = obs_source_enabled(filter);
+        obs_source_t* replacement = obs_source_create(kCiciFilterId, to_char(name), nullptr, nullptr);
+        if (replacement == nullptr) {
+            LogError << "Restore luma filter failed, source_uuid=" << sourceUuid << logEnd;
+            obs_source_release(filter);
+            obs_source_release(source);
+            continue;
+        }
+        auto* instance = findFilterInstance(obsSourceUuid(replacement));
+        assert(instance != nullptr);
+        if (instance == nullptr) {
+            obs_source_release(replacement);
+            obs_source_release(filter);
+            obs_source_release(source);
+            continue;
+        }
+        // The same input already has known dimensions, so retained previews can reopen on add.
+        instance->obsInfo()->setFrameSize(oldInstance->obsInfo()->frameWidth(), oldInstance->obsInfo()->frameHeight());
+        instance->setPendingApplyTrigger(u8"luma_recovery");
+        oldInstance->setPendingRemoveTrigger(u8"luma_recovery");
+        obs_source_set_enabled(replacement, enabled);
+        obs_source_filter_remove(source, filter);
+        bool restored = false;
+        if (!obs_source_removed(source)) {
+            obs_source_filter_add(source, replacement);
+            restored = obs_source_filter_get_index(source, replacement) >= 0;
+            if (restored) {
+                const auto lastIndex = obs_source_filter_count(source) - 1;
+                obs_source_filter_set_index(source, replacement, std::min(size_t(index), lastIndex));
+            }
+        }
+        LogInfo << "Restore luma filter source_uuid=" << sourceUuid << " old_filter_uuid=" << filterUuid
+                << " new_filter_uuid=" << obsSourceUuid(replacement) << " restored=" << restored << logEnd;
+        obs_source_release(replacement);
+        obs_source_release(filter);
+        obs_source_release(source);
     }
 }
 

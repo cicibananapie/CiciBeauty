@@ -97,9 +97,10 @@ public:
 private:
     void startGlobalServices();
     void stopGlobalServices();
-    void startLumaSession();
+    void startLumaSession(bool restoreFilters);
     void stopLumaSession();
     void onLumaClosed();
+    void restoreLumaFilters();
 
     void ensureLoginLogic();
     void ensureSettingConfig();
