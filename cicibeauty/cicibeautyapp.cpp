@@ -819,6 +819,7 @@ void CiciBeautyApp::startGlobalServices() {
     ensureUpdater();
     ensureEffectCatalog();
 
+    lumaStopRequested_ = false;
     startLumaSession(false);
     CiciReport::reportEvent(this, KEVT_APP_LAUNCH, nlohmann::json::object({
         {"launch_source", "obs_plugin"},
@@ -925,7 +926,6 @@ void CiciBeautyApp::startLumaSession(bool restoreFilters) {
         if (luma_ != nullptr) {
             return;
         }
-        lumaStopRequested_ = false;
         client = new LumaClient(this);
         luma_ = client;
     }
@@ -958,7 +958,6 @@ void CiciBeautyApp::startLumaSession(bool restoreFilters) {
 }
 
 void CiciBeautyApp::stopLumaSession() {
-    lumaStopRequested_ = true;
     LumaClient* client;
     {
         std::lock_guard lock(lumaMutex_);
@@ -976,16 +975,30 @@ void CiciBeautyApp::onLumaClosed() {
         client = std::exchange(luma_, nullptr);
     }
     assert(client != nullptr);
-    LogInfo << "luma session closed, intentional=" << lumaStopRequested_ << logEnd;
-    if (!lumaStopRequested_) {
-        recordLumaFailure();
-    }
     for (const auto& instance : filters_) {
         instance->working_.store(false);
     }
     setCurrentInstance(nullptr);
     // Finish the current IPC callback before destroying the client.
     client->deleteLater();
+    
+    LogInfo << "luma session closed, intentional=" << lumaStopRequested_ << logEnd;
+    if (lumaStopRequested_) {
+        return;
+    }
+    recordLumaFailure();
+    if (!needRestart()) {
+        LogWarn << "Luma automatic restart paused; recent failures=" << lumaFailures_.size() << logEnd;
+        return;
+    }
+
+    // Let the old client finish notifying its listeners before binding the new one.
+    QMetaObject::invokeMethod(this, [this]() {
+        if (globalStarted_ && !lumaStopRequested_) {
+            LogInfo << "Restarting luma after unexpected session closure" << logEnd;
+            startLumaSession(true);
+        }
+    }, Qt::QueuedConnection);
 }
 
 void CiciBeautyApp::recordLumaFailure() {
@@ -1226,6 +1239,9 @@ void CiciBeautyApp::onFrontendEvent(enum obs_frontend_event event) {
         }
     } else if (event == OBS_FRONTEND_EVENT_SCENE_COLLECTION_CLEANUP ||
                event == OBS_FRONTEND_EVENT_EXIT) {
+        if (event == OBS_FRONTEND_EVENT_EXIT) {
+            lumaStopRequested_ = true;
+        }
         for (const auto& instance : filters_) {
             instance->obsInfo()->disconnectSceneBinding();
         }
