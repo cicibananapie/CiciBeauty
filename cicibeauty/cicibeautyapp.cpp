@@ -570,6 +570,14 @@ void CiciBeautyApp::ensureDockCreated() {
 
     tipsWidget_ = new TipsWidget(dockContainer_);
     layout->addWidget(tipsWidget_);
+    QObject::connect(tipsWidget_, &TipsWidget::actionTriggered, this, [this]() {
+        if (!globalStarted_ || lumaStopRequested_ ||
+            lumaRecoveryState_ != LumaRecoveryUiState::Paused) {
+            return;
+        }
+        setRecoveryState(LumaRecoveryUiState::Recovering);
+        startLumaSession(true);
+    });
     updateRecoveryTip();
     createSettingWidget();
     if (auto* dock = mainWin->findChild<QDockWidget*>(kDockId);
@@ -1043,7 +1051,8 @@ void CiciBeautyApp::updateRecoveryTip() {
         tipsWidget_->showTip(QObject::tr("Recovering the CiciBeauty service"));
         break;
     case LumaRecoveryUiState::Paused:
-        tipsWidget_->showTip(QObject::tr("CiciBeauty is temporarily unavailable"));
+        tipsWidget_->showTip(QObject::tr("CiciBeauty is temporarily unavailable"),
+                             QObject::tr("Restart CiciBeauty"));
         break;
     }
 }

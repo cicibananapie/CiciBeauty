@@ -1146,6 +1146,26 @@ Qt: %4</translation>
 <context>
     <name>QObject</name>
     <message>
+        <source>Recovering</source>
+        <translation>Recovering</translation>
+    </message>
+    <message>
+        <source>Recovering the CiciBeauty service</source>
+        <translation>Recovering the CiciBeauty service</translation>
+    </message>
+    <message>
+        <source>Unavailable</source>
+        <translation>Unavailable</translation>
+    </message>
+    <message>
+        <source>CiciBeauty is temporarily unavailable</source>
+        <translation>CiciBeauty is temporarily unavailable</translation>
+    </message>
+    <message>
+        <source>Restart CiciBeauty</source>
+        <translation>Restart CiciBeauty</translation>
+    </message>
+    <message>
         <source>Cici Beauty</source>
         <translation type="vanished">Cici Beauty</translation>
     </message>

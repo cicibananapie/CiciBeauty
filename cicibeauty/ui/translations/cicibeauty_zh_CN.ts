@@ -1162,6 +1162,10 @@ Qt：%4</translation>
         <translation>CiciBeauty 暂时不可用</translation>
     </message>
     <message>
+        <source>Restart CiciBeauty</source>
+        <translation>重新启动 CiciBeauty</translation>
+    </message>
+    <message>
         <source>Cici Beauty</source>
         <translation type="vanished">Cici Beauty</translation>
     </message>
