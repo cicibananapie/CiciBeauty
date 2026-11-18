@@ -34,6 +34,7 @@ class SettingConfig;
 class SettingController;
 class SourceListCiciStatusController;
 class SubscriptionController;
+class TipsWidget;
 class UpdateClient;
 class QWidget;
 typedef struct obs_data obs_data_t;
@@ -153,6 +154,7 @@ private:
     bool lumaStopRequested_ = false; // Main-thread intent for the current session.
     std::deque<std::chrono::steady_clock::time_point> lumaFailures_;
     QPointer<QWidget> dockContainer_;
+    QPointer<TipsWidget> tipsWidget_;
     QPointer<SettingController> settingWidget_;
     std::unique_ptr<ContextBarEntryController> contextBarEntry_;
     std::unique_ptr<SourceListCiciStatusController> sourceListCiciStatus_;

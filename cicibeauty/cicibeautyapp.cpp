@@ -61,6 +61,7 @@
 #include "ui/loginwidget.h"
 #include "ui/settingcontroller.h"
 #include "ui/sourcelistcicistatuscontroller.h"
+#include "ui/tipswidget.h"
 #include "update/updateclient.h"
 
 namespace {
@@ -567,6 +568,8 @@ void CiciBeautyApp::ensureDockCreated() {
         return;
     }
 
+    tipsWidget_ = new TipsWidget(dockContainer_);
+    layout->addWidget(tipsWidget_);
     createSettingWidget();
     if (auto* dock = mainWin->findChild<QDockWidget*>(kDockId);
         dock != nullptr) {
@@ -972,18 +975,17 @@ void CiciBeautyApp::onLumaClosed() {
         std::lock_guard lock(lumaMutex_);
         client = std::exchange(luma_, nullptr);
     }
-    if (client) {
-        LogInfo << "luma session closed, intentional=" << lumaStopRequested_ << logEnd;
-        if (!lumaStopRequested_) {
-            recordLumaFailure();
-        }
-        for (const auto& instance : filters_) {
-            instance->working_.store(false);
-        }
-        setCurrentInstance(nullptr);
-        // Finish the current IPC callback before destroying the client.
-        client->deleteLater();
+    assert(client != nullptr);
+    LogInfo << "luma session closed, intentional=" << lumaStopRequested_ << logEnd;
+    if (!lumaStopRequested_) {
+        recordLumaFailure();
     }
+    for (const auto& instance : filters_) {
+        instance->working_.store(false);
+    }
+    setCurrentInstance(nullptr);
+    // Finish the current IPC callback before destroying the client.
+    client->deleteLater();
 }
 
 void CiciBeautyApp::recordLumaFailure() {

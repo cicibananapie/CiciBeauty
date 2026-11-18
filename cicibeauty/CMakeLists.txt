@@ -95,6 +95,8 @@ set(uicontroller_FILES
         ui/accountentrywidget.cpp
         ui/settingaccessoverlay.h
         ui/settingaccessoverlay.cpp
+        ui/tipswidget.h
+        ui/tipswidget.cpp
         ui/subscriptionui.h
         ui/subscriptionui.cpp
         ui/subscriptionuiformatter.h
