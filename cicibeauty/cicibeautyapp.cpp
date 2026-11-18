@@ -69,6 +69,8 @@ constexpr const char* kCiciFilterId = "cicbeauty";
 constexpr const char* kCiciFilterName = "Cici";
 constexpr const char* kDockId = "cicibeauty7d4f92a1-e3b5-4c68-b9f2-8d7a1c0e3a4b";
 constexpr char8_t kDuplicateFilterRejected[] = u8"duplicate_filter_rejected";
+constexpr auto kLumaFailureWindow = std::chrono::minutes(5);
+constexpr size_t kLumaFailureLimit = 3;
 
 CiciBeautyApp* g_app = nullptr;
 CiciBeautyApp gApp;
@@ -972,6 +974,9 @@ void CiciBeautyApp::onLumaClosed() {
     }
     if (client) {
         LogInfo << "luma session closed, intentional=" << lumaStopRequested_ << logEnd;
+        if (!lumaStopRequested_) {
+            recordLumaFailure();
+        }
         for (const auto& instance : filters_) {
             instance->working_.store(false);
         }
@@ -979,6 +984,19 @@ void CiciBeautyApp::onLumaClosed() {
         // Finish the current IPC callback before destroying the client.
         client->deleteLater();
     }
+}
+
+void CiciBeautyApp::recordLumaFailure() {
+    const auto now = std::chrono::steady_clock::now();
+    while (!lumaFailures_.empty() && now - lumaFailures_.front() >= kLumaFailureWindow) {
+        lumaFailures_.pop_front();
+    }
+    lumaFailures_.push_back(now);
+}
+
+bool CiciBeautyApp::needRestart() const {
+    // Call after recording the current failure so expired entries are already removed.
+    return lumaFailures_.size() < kLumaFailureLimit;
 }
 
 void CiciBeautyApp::restoreLumaFilters() {

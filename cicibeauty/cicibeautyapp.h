@@ -5,6 +5,8 @@
 #pragma once
 #include <stdint.h>
 
+#include <chrono>
+#include <deque>
 #include <memory>
 #include <mutex>
 #include <set>
@@ -100,6 +102,8 @@ private:
     void startLumaSession(bool restoreFilters);
     void stopLumaSession();
     void onLumaClosed();
+    void recordLumaFailure();
+    bool needRestart() const;
     void restoreLumaFilters();
 
     void ensureLoginLogic();
@@ -147,6 +151,7 @@ private:
     mutable std::recursive_mutex lumaMutex_;
     LumaClient* luma_ = nullptr;
     bool lumaStopRequested_ = false; // Main-thread intent for the current session.
+    std::deque<std::chrono::steady_clock::time_point> lumaFailures_;
     QPointer<QWidget> dockContainer_;
     QPointer<SettingController> settingWidget_;
     std::unique_ptr<ContextBarEntryController> contextBarEntry_;
