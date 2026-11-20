@@ -34,12 +34,8 @@ constexpr uint32_t kFavoriteCategoryId = 0;
 constexpr std::u8string_view kFavoritePage = u8"aiEffects";
 constexpr int kActionGroupIconSize = 64;
 
-std::u8string aiActionSelectedPath(uint32_t categoryIndex, uint32_t actionGroupIndex) {
-    return std::u8string(u8"/aiEffects/categories/")
-         + to_u8(categoryIndex)
-         + u8"/actionGroups/"
-         + to_u8(actionGroupIndex)
-         + u8"/selected";
+std::u8string aiActionSelectedPath(uint32_t categoryId, uint32_t actionGroupId) {
+    return std::u8string(u8"/aiEffects/selections/") + to_u8(categoryId) + u8"/" + to_u8(actionGroupId);
 }
 
 }
@@ -167,37 +163,19 @@ void ActionGroupWidget::reset() {
     }
 }
 
-void ActionGroupWidget::json2Me(const nlohmann::json& j) {
+void ActionGroupWidget::restoreSelection(uint32_t effectId) {
     reset();
-
-    const auto empty = nlohmann::json::object();
-    const auto& source = j.is_object() ? j : empty;
-    if (source.value("id", id()) != id()) {
-        assert(false);
+    if (effectId == 0) {
+        return;
     }
 
-    uint32_t selected = source.value("selected", 0);
-    for (auto i = 0; i < widgets_.size(); i++) {
-        auto w = widgets_[i];
-        if (w == nullptr) {
-            continue;
-        }
-        
-        if (selected == w->id()) {
+    for (auto* w : widgets_) {
+        if (w != nullptr && w->id() == effectId) {
             selectedWidget_ = w;
             selectedWidget_->setSelected(true);
             break;
         }
     }
-}
-
-nlohmann::json ActionGroupWidget::me2Json() const {
-    assert(id() == actionType_->id());
-    nlohmann::json j;
-    j["id"] = id();
-    j["selected"] = selectedWidget_ != nullptr ? selectedWidget_->id() : 0;
-    
-    return j;
 }
 
 CategoryWidget::CategoryWidget(GlobalModel* app, QWidget* parent/* = nullptr*/)
@@ -264,57 +242,20 @@ void CategoryWidget::reset() {
     }
 }
 
-void CategoryWidget::json2Me(const nlohmann::json& j) {
-    const auto empty = nlohmann::json::object();
-    const auto& source = j.is_object() ? j : empty;
-    if (source.value("id", id()) != id()) {
-        assert(false);
-    }
-
-    auto arrIt = source.find("actionGroups");
-    assert(arrIt != source.end() && arrIt->is_array());
-    const auto arr = arrIt != source.end() ? *arrIt : nlohmann::json::array();
-
+void CategoryWidget::json2Me(const nlohmann::json& selections) {
     for (auto* w : widgets_) {
-        const nlohmann::json* matched = nullptr;
-        for (auto i = 0; i < arr.size(); i++) {
-            const auto& ag = arr[i];
-            uint32_t id = ag.value("id", static_cast<uint32_t>(-1));
-            if (id == w->id()) {
-                matched = &ag;
-                break;
-            }
-        }
-
-        if (matched != nullptr) {
-            w->json2Me(*matched);
-        } else {
-            assert(false);
-            nlohmann::json defaultActionGroup = nlohmann::json::object();
-            defaultActionGroup["id"] = w->id();
-            defaultActionGroup["selected"] = 0;
-            w->json2Me(defaultActionGroup);
-        }
+        w->restoreSelection(JsonUtility::uintAt(selections, to_u8(w->id())));
     }
 }
 
 nlohmann::json CategoryWidget::me2Json() const {
-    if (widgets_.empty()) {
-        return nlohmann::json();
+    auto selections = nlohmann::json::object();
+    for (const auto* group : widgets_) {
+        if (const auto selected = group->selectedEffectId(); selected != 0) {
+            selections[std::to_string(group->id())] = selected;
+        }
     }
-
-    auto arr = nlohmann::json::array();
-    for (auto i = 0; i < widgets_.size(); i++) {
-        auto ag = widgets_[i];
-        arr.push_back(ag->me2Json());
-    }
-    
-    auto j = nlohmann::json::object();
-    j["id"] = id();
-    
-    j["actionGroups"].swap(arr);
-    
-    return j;
+    return selections;
 }
 
 AIEffectController::AIEffectController(GlobalModel* app, QWidget* parent/* = nullptr*/)
@@ -428,11 +369,10 @@ void AIEffectController::loadEffectList() {
         CategoryWidget* tab = new CategoryWidget(app_);
         tab->setId(id);
         tab->addActionGroups(category);
-        const auto categoryIndex = static_cast<uint32_t>(i);
         QObject::connect(tab,
                          &CategoryWidget::actionGroupSelectionChanged,
                          this,
-                         [this, tab, categoryIndex](uint32_t actionGroupIndex,
+                         [this, tab](uint32_t actionGroupIndex,
                                                     uint32_t actionGroupId,
                                                     uint32_t clickedEffectId,
                                                     uint32_t selectedEffectId) {
@@ -442,7 +382,7 @@ void AIEffectController::loadEffectList() {
                                  return;
                              }
                              emit settingPatchRequested(JsonUtility::Patch::add(
-                                 aiActionSelectedPath(categoryIndex, actionGroupIndex),
+                                 aiActionSelectedPath(tab->id(), actionGroupId),
                                  selectedEffectId));
                              auto* item = effectItem(clickedEffectId);
                              assert(item != nullptr);
@@ -695,25 +635,9 @@ void AIEffectController::json2Me(const nlohmann::json& j) {
     }
     tabWidget_->setCurrentWidget(selectedPage);
     
-    auto arrIt = source.find("categories");
-    assert(arrIt != source.end() && arrIt->is_array());
-    const auto arr = arrIt != source.end() ? *arrIt : nlohmann::json::array();
+    const auto& selections = JsonUtility::objectAt(source, u8"selections");
     for (auto* categoryWidget : categories_) {
-        const nlohmann::json* matched = nullptr;
-        for (auto i = 0; i < arr.size(); i++) {
-            const auto& item = arr[i];
-            uint32_t id = item.value("id", static_cast<uint32_t>(-1));
-            if (id == categoryWidget->id()) {
-                matched = &item;
-                break;
-            }
-        }
-
-        assert(matched != nullptr);
-        if (matched == nullptr) {
-            continue;
-        }
-        categoryWidget->json2Me(*matched);
+        categoryWidget->json2Me(JsonUtility::objectAt(selections, to_u8(categoryWidget->id())));
     }
 
     syncAllFavoriteSelections();
@@ -727,14 +651,14 @@ nlohmann::json AIEffectController::me2Json() const {
     j["selected"] = page == favoritesPage_
         ? kFavoriteCategoryId
         : static_cast<CategoryWidget*>(page)->id();
-    auto arr = nlohmann::json::array();
+    auto selections = nlohmann::json::object();
     for (auto* category : categories_) {
         auto item = category->me2Json();
-        if (!item.is_null()) {
-            arr.push_back(item);
+        if (!item.empty()) {
+            selections[std::to_string(category->id())] = std::move(item);
         }
     }
-    j["categories"].swap(arr);
+    j["selections"] = std::move(selections);
     
     return j;
 }

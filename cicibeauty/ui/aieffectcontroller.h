@@ -35,11 +35,10 @@ public:
     void setEffectFavorite(uint32_t effectId, bool favorite);
     uint32_t selectedEffectId() const;
     QString name() const;
+    void restoreSelection(uint32_t effectId);
     
 public:
-    void json2Me(const nlohmann::json& j) override;
     void reset() override;
-    nlohmann::json me2Json() const;
 
 signals:
     void selectionChanged(uint32_t clickedEffectId, uint32_t selectedEffectId);
