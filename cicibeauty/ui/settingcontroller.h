@@ -138,5 +138,6 @@ private:
     QStackedWidget* stackedWidget_ = nullptr;
     signal_handler_t* obsSignalHandler_ = nullptr;
     GlobalModel *app_ = nullptr;
+    bool effectActivationPending_ = false;
     bool uiCreated_ = false;
 };

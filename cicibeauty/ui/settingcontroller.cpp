@@ -499,20 +499,25 @@ void SettingController::confirmEffectActivation(QWidget* owner, uint64_t effectI
     const SettingTarget target = activeSettingTarget();
     auto* model = app_->filterModel();
     if (!target.isValid() || model == nullptr || model->filterUuid() != target.filterUuid ||
-        !isEnabled()) {
+        !isEnabled() || effectActivationPending_) {
         complete(false);
         return;
     }
 
-    setEnabled(false);
+    effectActivationPending_ = true;
     model->canActivateEffect(
         this, effectId,
-        [this, owner = QPointer<QWidget>(owner), target, complete = std::move(complete)](
+        [this, owner = QPointer<QWidget>(owner), target,
+         config = app_->settingConfig()->config(target.sourceUuid), complete = std::move(complete)](
             bool allowed, const nlohmann::json& disablePatch) {
-            setEnabled(true);
+            effectActivationPending_ = false;
             auto* currentModel = app_->filterModel();
             if (owner == nullptr || !isActiveSettingTarget(target) || currentModel == nullptr ||
                 currentModel->filterUuid() != target.filterUuid) {
+                return;
+            }
+            if (app_->settingConfig()->config(target.sourceUuid) != config) {
+                complete(false);
                 return;
             }
             if (!allowed && !disablePatch.empty()) {
