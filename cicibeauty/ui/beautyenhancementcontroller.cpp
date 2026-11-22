@@ -601,7 +601,6 @@ void BeautyEnhancementController::createUI() {
     
     tabWidget_ = new QTabWidget;
     applyDisabledTabStyle(tabWidget_);
-    tabWidget_->setTabsClosable(true);
     QVBoxLayout* vbox = new QVBoxLayout;
     vbox->addItem(hbox);
     vbox->addWidget(tabWidget_, 1);
@@ -609,7 +608,7 @@ void BeautyEnhancementController::createUI() {
     
     newSlnWidget_ = new QWidget;
     tabWidget_->addTab(newSlnWidget_, tr("+ New Sln"));
-    refreshNewSolutionTabCloseButton();
+    refreshSolutionTabCloseButtons();
     
     QObject::connect(enableBeautyCheckBox_, &QCheckBox::stateChanged, this, [this](int state) {
         const auto enableBeauty = (state == Qt::Checked);
@@ -662,15 +661,21 @@ int BeautyEnhancementController::selectedSolutionIndexAfterRemove(int removedInd
     return removedIndex < remaining ? removedIndex : remaining - 1;
 }
 
-void BeautyEnhancementController::refreshNewSolutionTabCloseButton() {
+void BeautyEnhancementController::refreshSolutionTabCloseButtons() {
     const int index = tabWidget_->indexOf(newSlnWidget_);
     assert(index >= 0);
     if (index < 0) {
         return;
     }
 
-    tabWidget_->tabBar()->setTabButton(index, QTabBar::LeftSide, nullptr);
-    tabWidget_->tabBar()->setTabButton(index, QTabBar::RightSide, nullptr);
+    tabWidget_->setTabsClosable(solutionTabCount() > 1);
+    auto* tabBar = tabWidget_->tabBar();
+    for (const auto side : {QTabBar::LeftSide, QTabBar::RightSide}) {
+        if (auto* button = tabBar->tabButton(index, side)) {
+            tabBar->setTabButton(index, side, nullptr);
+            button->deleteLater();
+        }
+    }
 }
 
 void BeautyEnhancementController::onTabCloseRequested(int index) {
@@ -679,7 +684,6 @@ void BeautyEnhancementController::onTabCloseRequested(int index) {
         return;
     }
     if (solutionTabCount() <= 1) {
-        assert(false);
         return;
     }
 
@@ -699,7 +703,7 @@ void BeautyEnhancementController::onTabCloseRequested(int index) {
         selected = selectedSolutionIndexAfterRemove(index);
         assert(selected >= 0);
         tabWidget_->setCurrentIndex(selected);
-        refreshNewSolutionTabCloseButton();
+        refreshSolutionTabCloseButtons();
     }
     
     delete w;
@@ -733,7 +737,7 @@ void BeautyEnhancementController::onTabBarClicked(int index) {
         QSignalBlocker blocker(tabWidget_);
         tabWidget_->insertTab(index, solutionTab, solutionTab->displayName());
         tabWidget_->setCurrentIndex(index);
-        refreshNewSolutionTabCloseButton();
+        refreshSolutionTabCloseButtons();
     }
     QObject::connect(solutionTab, &SolutionController::fieldChanged, this,
                      [this, solutionTab](const QString& key, const nlohmann::json& value) {
@@ -798,7 +802,7 @@ void BeautyEnhancementController::resetState(bool) {
     if (newSlnWidget_ != nullptr && tabWidget_->indexOf(newSlnWidget_) >= 0) {
         tabWidget_->setCurrentWidget(newSlnWidget_);
     }
-    refreshNewSolutionTabCloseButton();
+    refreshSolutionTabCloseButtons();
 
     refreshEnableState(false);
 }
@@ -829,7 +833,7 @@ void BeautyEnhancementController::json2Me(const nlohmann::json& j) {
         sln->json2Me(s, static_cast<uint32_t>(index));
         tabWidget_->insertTab(index, sln, sln->displayName());
     }
-    refreshNewSolutionTabCloseButton();
+    refreshSolutionTabCloseButtons();
     if (selected >= solutions.size()) {
         selected = static_cast<uint32_t>(solutions.size() - 1);
     }
