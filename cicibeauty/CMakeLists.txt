@@ -129,6 +129,8 @@ set(uicontroller_FILES
         ui/marqueelabel.cpp
         ui/gridmorelayout.h
         ui/gridmorelayout.cpp
+        ui/categorizedcardgrid.h
+        ui/categorizedcardgrid.cpp
         ui/basicsettingcontroller.h
         ui/basicsettingcontroller.cpp
         ui/beautyenhancementcontroller.h
