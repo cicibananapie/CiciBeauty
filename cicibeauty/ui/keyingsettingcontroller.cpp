@@ -5,6 +5,7 @@
 #include <algorithm>
 
 #include <QLabel>
+#include <QFont>
 #include <QIcon>
 #include <QPainter>
 #include <QPixmap>
@@ -142,348 +143,170 @@ KeyingTemplateController::KeyingTemplateController(GlobalModel *app,
     assert(templateName_ != nullptr);
     initializeParams();
 
-    QVBoxLayout* vbox = new QVBoxLayout;
+    auto* vbox = new QVBoxLayout;
+    vbox->setContentsMargins(10, 8, 10, 8);
+    vbox->setSpacing(14);
+
+    auto addParamRow = [this](QVBoxLayout* layout, const QString& name, EffectDetailInfo2& param,
+                              QList<QWidget*>* group = nullptr) {
+        auto* label = new QLabel(name);
+        label->setTextFormat(Qt::PlainText);
+        label->setWordWrap(true);
+        if (group) {
+            label->setStyleSheet(QStringLiteral("font-size: 11.2pt; font-weight: normal;"));
+        } else {
+            auto font = label->font();
+            font.setWeight(QFont::Medium);
+            label->setFont(font);
+        }
+
+        auto* slider = createSlider();
+        auto* editor = createEdit();
+        editor->setAlignment(Qt::AlignRight | Qt::AlignVCenter);
+        label->setBuddy(slider);
+        slider->setAccessibleName(name);
+        editor->setAccessibleName(name);
+        bindSliderEditor(slider, editor, &param);
+
+        auto* header = new QHBoxLayout;
+        header->addWidget(label, 1);
+        header->addWidget(editor, 0, Qt::AlignVCenter);
+
+        auto* sliderRow = new QHBoxLayout;
+        sliderRow->setContentsMargins(8, 0, 0, 0);
+        sliderRow->addWidget(slider);
+
+        auto* row = new QVBoxLayout;
+        row->setSpacing(2);
+        row->addLayout(header);
+        row->addLayout(sliderRow);
+        layout->addLayout(row);
+
+        if (group) {
+            group->push_back(label);
+            group->push_back(slider);
+            group->push_back(editor);
+        }
+    };
+
+    auto addFeatureHeader = [vbox](const QString& name, QCheckBox* checkBox) {
+        auto* label = new QLabel(name);
+        label->setTextFormat(Qt::PlainText);
+        label->setWordWrap(true);
+        auto font = label->font();
+        font.setWeight(QFont::DemiBold);
+        if (font.pixelSize() > 0) {
+            font.setPixelSize(qMax(1, qRound(font.pixelSize() * 1.15)));
+        } else {
+            font.setPointSizeF(font.pointSizeF() * 1.15);
+        }
+        label->setFont(font);
+
+        auto* header = new QHBoxLayout;
+        header->setSpacing(KSpacing);
+        header->addWidget(label);
+        header->addWidget(checkBox);
+        header->addStretch();
+        vbox->addLayout(header);
+    };
+
+    auto addFeatureParams = [vbox]() {
+        auto* layout = new QVBoxLayout;
+        layout->setContentsMargins(KHeadSpading, 0, 0, 0);
+        layout->setSpacing(5);
+        vbox->addLayout(layout);
+        return layout;
+    };
+
     {
         QPushButton* btn = createPushButton(tr("Reset Param"));
         QHBoxLayout* hbox = new QHBoxLayout;
         hbox->addWidget(btn);
         hbox->addStretch();
         vbox->addItem(hbox);
-        
+
         QObject::connect(btn, &QPushButton::clicked, this, [this]() {
             reportKeyingTemplateAction(app_, u8"template_reset", to_u8(templateName_));
             onResetParamBtnClicked();
         });
     }
-    //basic
+
+    addParamRow(vbox, tr("Similarity"), similarity_);
+    addParamRow(vbox, tr("Background blur"), bkBlur_);
+    addParamRow(vbox, tr("Transparency Coarse"), transparencyCorse_);
+    addParamRow(vbox, tr("Transparency Fine"), transparencyFine_);
+    addParamRow(vbox, tr("Edge Indent"), edgeIndent_);
+
     {
-        QLabel* label = createFixWidthLabel(tr("Similarity"));
-        auto slider = createSlider();
-        auto editor = createEdit();
-        QHBoxLayout* hbox = new QHBoxLayout;
-        hbox->setSpacing(KSpacing);
-        hbox->addWidget(label);
-        hbox->addWidget(slider);
-        hbox->addWidget(editor);
-        vbox->addItem(hbox);
-        
-        bindSliderEditor(slider, editor, &similarity_);
-    }
-    {
-        QLabel* label = createFixWidthMarqueeLabel(tr("Background blur"));
-        auto slider = createSlider();
-        auto editor = createEdit();
-        QHBoxLayout* hbox = new QHBoxLayout;
-        hbox->setSpacing(KSpacing);
-        hbox->addWidget(label);
-        hbox->addWidget(slider);
-        hbox->addWidget(editor);
-        vbox->addItem(hbox);
-        
-        bindSliderEditor(slider, editor, &bkBlur_);
-    }
-    //Transparency
-    {
-        QLabel* label = createFixWidthMarqueeLabel(tr("Transparency Coarse"));
-        QSlider* slider = createSlider();
-        QLineEdit* editor = createEdit();
-        QHBoxLayout* hbox = new QHBoxLayout;
-        hbox->setSpacing(KSpacing);
-        hbox->addWidget(label);
-        hbox->addWidget(slider);
-        hbox->addWidget(editor);
-        vbox->addItem(hbox);
-        
-        bindSliderEditor(slider, editor, &transparencyCorse_);
-    }
-    {
-        QLabel* label = createFixWidthMarqueeLabel(tr("Transparency Fine"));
-        QSlider* slider = createSlider();
-        QLineEdit* editor = createEdit();
-        QHBoxLayout* hbox = new QHBoxLayout;
-        hbox->setSpacing(KSpacing);
-        hbox->addWidget(label);
-        hbox->addWidget(slider);
-        hbox->addWidget(editor);
-        vbox->addItem(hbox);
-        
-        bindSliderEditor(slider, editor, &transparencyFine_);
-    }
-    {
-        QLabel* label = createFixWidthMarqueeLabel(tr("Edge Indent"));
-        QSlider* slider = createSlider();
-        QLineEdit* editor = createEdit();
-        QHBoxLayout* hbox = new QHBoxLayout;
-        hbox->setSpacing(KSpacing);
-        hbox->addWidget(label);
-        hbox->addWidget(slider);
-        hbox->addWidget(editor);
-        vbox->addItem(hbox);
-        
-        bindSliderEditor(slider, editor, &edgeIndent_);
-    }
-    //blend smoothing
-    {
-        QLabel* label = createLabel(tr("Blend Smoothly"));
         blendSmoothCheckBox_ = createCheckBox("");
-        QHBoxLayout* hbox = new QHBoxLayout;
-        hbox->setSpacing(KSpacing);
-        hbox->addWidget(label);
-        hbox->addWidget(blendSmoothCheckBox_);
-        hbox->addStretch();
-        vbox->addItem(hbox);
-        
+        addFeatureHeader(tr("Blend Smoothly"), blendSmoothCheckBox_);
+
         auto b = QObject::connect(blendSmoothCheckBox_, &QCheckBox::stateChanged, this, &KeyingTemplateController::onBlendSmoothStateChanged);
         assert(b);
         QObject::connect(blendSmoothCheckBox_, &QCheckBox::clicked, this, [this](bool checked) {
             reportKeyingTemplateToggle(app_, to_u8(templateName_), u8"blend_smooth", checked);
         });
-        {
-            QLabel* label = createFixWidthLabel(tr("Degree"));
-            QSlider* slider = createSlider();
-            QLineEdit* editor = createEdit();
-            blendSmoothUI_.push_back(label);
-            blendSmoothUI_.push_back(slider);
-            blendSmoothUI_.push_back(editor);
-            QHBoxLayout* hbox = new QHBoxLayout;
-            hbox->setSpacing(KSpacing);
-            hbox->addWidget(label);
-            hbox->addWidget(slider);
-            hbox->addWidget(editor);
-            vbox->addItem(hbox);
-            
-            bindSliderEditor(slider, editor, &blendSmoothDegree_);
-        }
-        {
-            QLabel* label = createFixWidthLabel(tr("Scope"));
-            QSlider* slider = createSlider();
-            QLineEdit* editor = createEdit();
-            blendSmoothUI_.push_back(label);
-            blendSmoothUI_.push_back(slider);
-            blendSmoothUI_.push_back(editor);
-            QHBoxLayout* hbox = new QHBoxLayout;
-            hbox->setSpacing(KSpacing);
-            hbox->addWidget(label);
-            hbox->addWidget(slider);
-            hbox->addWidget(editor);
-            vbox->addItem(hbox);
-            
-            bindSliderEditor(slider, editor, &blendSmoothScope_);
-        }
+
+        auto* params = addFeatureParams();
+        addParamRow(params, tr("Degree"), blendSmoothDegree_, &blendSmoothUI_);
+        addParamRow(params, tr("Scope"), blendSmoothScope_, &blendSmoothUI_);
     }
-    //Light & Shadow
     {
-        QLabel* label = createLabel(tr("Light&Shadow"));
         lightShadowCheckBox_ = createCheckBox("");
-        QHBoxLayout* hbox = new QHBoxLayout;
-        hbox->setSpacing(KSpacing);
-        hbox->addWidget(label);
-        hbox->addWidget(lightShadowCheckBox_);
-        hbox->addStretch();
-        vbox->addItem(hbox);
-        
+        addFeatureHeader(tr("Light&Shadow"), lightShadowCheckBox_);
+
         auto b = QObject::connect(lightShadowCheckBox_, &QCheckBox::stateChanged, this, &KeyingTemplateController::onLightShadowStateChanged);
         assert(b);
         QObject::connect(lightShadowCheckBox_, &QCheckBox::clicked, this, [this](bool checked) {
             reportKeyingTemplateToggle(app_, to_u8(templateName_), u8"light_shadow", checked);
         });
-        {
-            QLabel* label = createFixWidthLabel(tr("Degree"));
-            QSlider* slider = createSlider();
-            QLineEdit* editor = createEdit();
-            lightShadowUI_.push_back(label);
-            lightShadowUI_.push_back(slider);
-            lightShadowUI_.push_back(editor);
-            QHBoxLayout* hbox = new QHBoxLayout;
-            hbox->setSpacing(KSpacing);
-            hbox->addWidget(label);
-            hbox->addWidget(slider);
-            hbox->addWidget(editor);
-            vbox->addItem(hbox);
-            
-            bindSliderEditor(slider, editor, &lightShadowDegree_);
-        }
-        {
-            QLabel* label = createFixWidthLabel(tr("Scope"));
-            QSlider* slider = createSlider();
-            QLineEdit* editor = createEdit();
-            lightShadowUI_.push_back(label);
-            lightShadowUI_.push_back(slider);
-            lightShadowUI_.push_back(editor);
-            QHBoxLayout* hbox = new QHBoxLayout;
-            hbox->setSpacing(KSpacing);
-            hbox->addWidget(label);
-            hbox->addWidget(slider);
-            hbox->addWidget(editor);
-            vbox->addItem(hbox);
-            
-            bindSliderEditor(slider, editor, &lightShadowScope_);
-        }
+
+        auto* params = addFeatureParams();
+        addParamRow(params, tr("Degree"), lightShadowDegree_, &lightShadowUI_);
+        addParamRow(params, tr("Scope"), lightShadowScope_, &lightShadowUI_);
     }
-    //hair detail
     {
-        QLabel* label = createLabel(tr("Hair detail"));
         hairDetailCheckBox_ = createCheckBox("");
-        QHBoxLayout* hbox = new QHBoxLayout;
-        hbox->setSpacing(KSpacing);
-        hbox->addWidget(label);
-        hbox->addWidget(hairDetailCheckBox_);
-        hbox->addStretch();
-        vbox->addItem(hbox);
-            
+        addFeatureHeader(tr("Hair detail"), hairDetailCheckBox_);
+
         auto b = QObject::connect(hairDetailCheckBox_, &QCheckBox::stateChanged, this, &KeyingTemplateController::onHairDetailStateChanged);
         assert(b);
         QObject::connect(hairDetailCheckBox_, &QCheckBox::clicked, this, [this](bool checked) {
             reportKeyingTemplateToggle(app_, to_u8(templateName_), u8"hair_detail", checked);
         });
-        {
-            QLabel* label = createFixWidthLabel(tr("Scope"));
-            QSlider* slider = createSlider();
-            QLineEdit* editor = createEdit();
-            hairDetailUI_.push_back(label);
-            hairDetailUI_.push_back(slider);
-            hairDetailUI_.push_back(editor);
-            QHBoxLayout* hbox = new QHBoxLayout;
-            hbox->setSpacing(KSpacing);
-            hbox->addWidget(label);
-            hbox->addWidget(slider);
-            hbox->addWidget(editor);
-            vbox->addItem(hbox);
-            
-            bindSliderEditor(slider, editor, &hairDetailScope_);
-        }
+
+        auto* params = addFeatureParams();
+        addParamRow(params, tr("Scope"), hairDetailScope_, &hairDetailUI_);
     }
-    //Color bleed control
     {
-        QLabel* label = createLabel(tr("Color Bleed"));
         colorBleedCheckBox_ = createCheckBox("");
-        QHBoxLayout* hbox = new QHBoxLayout;
-        hbox->setSpacing(KSpacing);
-        hbox->addWidget(label);
-        hbox->addWidget(colorBleedCheckBox_);
-        hbox->addStretch();
-        vbox->addItem(hbox);
-        
+        addFeatureHeader(tr("Color Bleed"), colorBleedCheckBox_);
+
         auto b = QObject::connect(colorBleedCheckBox_, &QCheckBox::stateChanged, this, &KeyingTemplateController::onColorBleedControlStateChanged);
         assert(b);
         QObject::connect(colorBleedCheckBox_, &QCheckBox::clicked, this, [this](bool checked) {
             reportKeyingTemplateToggle(app_, to_u8(templateName_), u8"color_bleed", checked);
         });
-        {
-            QLabel* label = createFixWidthLabel(tr("Red"));
-            QSlider* slider = createSlider();
-            QLineEdit* editor = createEdit();
-            colorBleedUI_.push_back(label);
-            colorBleedUI_.push_back(slider);
-            colorBleedUI_.push_back(editor);
-            QHBoxLayout* hbox = new QHBoxLayout;
-            hbox->setSpacing(KSpacing);
-            hbox->addWidget(label);
-            hbox->addWidget(slider);
-            hbox->addWidget(editor);
-            vbox->addItem(hbox);
-            
-            bindSliderEditor(slider, editor, &colorBleedRed_);
-        }
-        {
-            QLabel* label = createFixWidthLabel(tr("Green"));
-            QSlider* slider = createSlider();
-            QLineEdit* editor = createEdit();
-            colorBleedUI_.push_back(label);
-            colorBleedUI_.push_back(slider);
-            colorBleedUI_.push_back(editor);
-            QHBoxLayout* hbox = new QHBoxLayout;
-            hbox->setSpacing(KSpacing);
-            hbox->addWidget(label);
-            hbox->addWidget(slider);
-            hbox->addWidget(editor);
-            vbox->addItem(hbox);
-            
-            bindSliderEditor(slider, editor, &colorBleedGreen_);
-        }
-        {
-            QLabel* label = createFixWidthLabel(tr("Blue"));
-            QSlider* slider = createSlider();
-            QLineEdit* editor = createEdit();
-            colorBleedUI_.push_back(label);
-            colorBleedUI_.push_back(slider);
-            colorBleedUI_.push_back(editor);
-            QHBoxLayout* hbox = new QHBoxLayout;
-            hbox->setSpacing(KSpacing);
-            hbox->addWidget(label);
-            hbox->addWidget(slider);
-            hbox->addWidget(editor);
-            vbox->addItem(hbox);
-            
-            bindSliderEditor(slider, editor, &colorBleedBlue_);
-        }
-        {
-            QLabel* label = createFixWidthMarqueeLabel(tr("Mix Coefficient"));
-            QSlider* slider = createSlider();
-            QLineEdit* editor = createEdit();
-            colorBleedUI_.push_back(label);
-            colorBleedUI_.push_back(slider);
-            colorBleedUI_.push_back(editor);
-            QHBoxLayout* hbox = new QHBoxLayout;
-            hbox->setSpacing(KSpacing);
-            hbox->addWidget(label);
-            hbox->addWidget(slider);
-            hbox->addWidget(editor);
-            vbox->addItem(hbox);
-            
-            bindSliderEditor(slider, editor, &colorBleedMixCoefficient_);
-        }
-        {
-            QLabel* label = createFixWidthLabel(tr("Intensity"));
-            QSlider* slider = createSlider();
-            QLineEdit* editor = createEdit();
-            colorBleedUI_.push_back(label);
-            colorBleedUI_.push_back(slider);
-            colorBleedUI_.push_back(editor);
-            QHBoxLayout* hbox = new QHBoxLayout;
-            hbox->setSpacing(KSpacing);
-            hbox->addWidget(label);
-            hbox->addWidget(slider);
-            hbox->addWidget(editor);
-            vbox->addItem(hbox);
-            
-            bindSliderEditor(slider, editor, &colorBleedIntensity_);
-        }
-        {
-            QLabel* label = createFixWidthLabel(tr("Luminance"));
-            QSlider* slider = createSlider();
-            QLineEdit* editor = createEdit();
-            colorBleedUI_.push_back(label);
-            colorBleedUI_.push_back(slider);
-            colorBleedUI_.push_back(editor);
-            QHBoxLayout* hbox = new QHBoxLayout;
-            hbox->setSpacing(KSpacing);
-            hbox->addWidget(label);
-            hbox->addWidget(slider);
-            hbox->addWidget(editor);
-            vbox->addItem(hbox);
-            
-            bindSliderEditor(slider, editor, &colorBleedLuminance_);
-        }
+
+        auto* params = addFeatureParams();
+        addParamRow(params, tr("Red"), colorBleedRed_, &colorBleedUI_);
+        addParamRow(params, tr("Green"), colorBleedGreen_, &colorBleedUI_);
+        addParamRow(params, tr("Blue"), colorBleedBlue_, &colorBleedUI_);
+        addParamRow(params, tr("Mix Coefficient"), colorBleedMixCoefficient_, &colorBleedUI_);
+        addParamRow(params, tr("Intensity"), colorBleedIntensity_, &colorBleedUI_);
+        addParamRow(params, tr("Luminance"), colorBleedLuminance_, &colorBleedUI_);
     }
-    //face protect
     {
-        QLabel* label = createLabel(tr("Face Protect"));
         faceProtectCheckBox_ = createCheckBox("");
-        QHBoxLayout* hbox = new QHBoxLayout;
-        hbox->setSpacing(KSpacing);
-        hbox->addWidget(label);
-        hbox->addWidget(faceProtectCheckBox_);
-        hbox->addStretch();
-        vbox->addItem(hbox);
-        
+        addFeatureHeader(tr("Face Protect"), faceProtectCheckBox_);
+
         auto b = QObject::connect(faceProtectCheckBox_, &QCheckBox::stateChanged, this, &KeyingTemplateController::onFaceProtectStateChanged);
         assert(b);
         QObject::connect(faceProtectCheckBox_, &QCheckBox::clicked, this, [this](bool checked) {
             reportKeyingTemplateToggle(app_, to_u8(templateName_), u8"face_protect", checked);
         });
     }
-    
+
     this->setLayout(vbox);
     syncFeatureFlagUI();
 }
