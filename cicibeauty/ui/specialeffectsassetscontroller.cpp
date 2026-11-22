@@ -256,7 +256,7 @@ void SpecialEffectsAssetsController::createUI() {
 
         tabWidget_->addTab(favoritesPage_, tr("Favorites"));
         this->loadEffectList();
-        vbox->addWidget(tabWidget_);
+        vbox->addWidget(tabWidget_, 1);
         QObject::connect(tabWidget_, &QTabWidget::currentChanged, this, &SpecialEffectsAssetsController::onCurrentChanged);
         auto* categoryTabBar = tabWidget_->findChild<QTabBar*>();
         assert(categoryTabBar != nullptr);
@@ -274,9 +274,6 @@ void SpecialEffectsAssetsController::createUI() {
                                              to_u8(tabWidget_->tabText(index)));
         });
     }
-    
-    vbox->addStretch();
-    
     this->setLayout(vbox);
 }
 

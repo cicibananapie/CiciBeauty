@@ -309,7 +309,7 @@ void AIEffectController::createUI() {
         tabWidget_->addTab(favoritesPage_, tr("Favorites"));
         
         loadEffectList();
-        vbox->addWidget(tabWidget_);
+        vbox->addWidget(tabWidget_, 1);
         QObject::connect(tabWidget_, &QTabWidget::currentChanged, this, &AIEffectController::onCurrentChanged);
         auto* categoryTabBar = tabWidget_->findChild<QTabBar*>();
         assert(categoryTabBar != nullptr);
@@ -327,7 +327,6 @@ void AIEffectController::createUI() {
                                              to_u8(tabWidget_->tabText(index)));
         });
     }
-    vbox->addStretch();
     this->setLayout(vbox);
 }
 
