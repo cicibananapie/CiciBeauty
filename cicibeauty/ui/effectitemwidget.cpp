@@ -24,8 +24,8 @@ constexpr int kEffectIconSize = 56;
 
 } // namespace
 
-EffectItemWidget::EffectItemWidget(GlobalModel* app, QWidget* parent)
-    : ImageTextWidget(app->assets(), parent)
+EffectItemWidget::EffectItemWidget(GlobalModel* app, QWidget* parent, CardStyle cardStyle)
+    : ImageTextWidget(app->assets(), parent, cardStyle)
     , app_(app) {
     assert(app_ != nullptr);
     setImageDisplaySize(QSize(kEffectIconSize, kEffectIconSize));

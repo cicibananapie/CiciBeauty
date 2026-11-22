@@ -21,7 +21,9 @@ class ImageTextWidget: public CiciWidget{
     Q_OBJECT
     
 public:
-    ImageTextWidget(AssetsMgr* assets, QWidget* parent = nullptr);
+    enum class CardStyle { Compact, Wide };
+
+    ImageTextWidget(AssetsMgr* assets, QWidget* parent = nullptr, CardStyle cardStyle = CardStyle::Compact);
     ~ImageTextWidget();
     
 public:
@@ -60,6 +62,9 @@ protected:
     
 private:
     void drawHeart(QPainter *painter, const QRectF &rect);
+    QRect favoriteRect() const;
+    void drawCompactCard(QPainter& painter);
+    void drawWideCard(QPainter& painter);
     void drawMarqueeText(QPainter *painter, const QRect& rect, int textWidth) const;
     void drawDisplayText(QPainter *painter, const QRect& rect) const;
     void _setImage(const QString& path);
@@ -88,6 +93,7 @@ private:
     bool hoverEffectEnabled_ = true;
     bool favoriteEnabled_ = true;
     bool clickableEnabled_ = true;
+    const CardStyle cardStyle_;
     AssetsMgr* assetsMgr_ = nullptr;
     QPointer<RemoteImageStatus> remoteImageStatus_;
     QMetaObject::Connection remoteImageStateConnection_;

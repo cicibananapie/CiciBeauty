@@ -25,7 +25,7 @@ class QTimerEvent;
 
 class EffectItemWidget : public ImageTextWidget {
 public:
-    explicit EffectItemWidget(GlobalModel* app, QWidget* parent = nullptr);
+    explicit EffectItemWidget(GlobalModel* app, QWidget* parent = nullptr, CardStyle cardStyle = CardStyle::Compact);
     ~EffectItemWidget() override;
 
     void setId(uint32_t id) override;

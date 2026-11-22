@@ -15,6 +15,7 @@
 #include <QEvent>
 #include <QTimerEvent>
 #include <QFontMetrics>
+#include <QTextLayout>
 
 #include "misc.h"
 #include "imagetextwidget.h"
@@ -94,8 +95,8 @@ void installImageTextWidgetAccessibilityFactory() {
 
 } // namespace
 
-ImageTextWidget::ImageTextWidget(AssetsMgr* assets, QWidget* parent/* = nullptr*/)
-: CiciWidget(parent), assetsMgr_(assets) {
+ImageTextWidget::ImageTextWidget(AssetsMgr* assets, QWidget* parent, CardStyle cardStyle)
+: CiciWidget(parent), cardStyle_(cardStyle), assetsMgr_(assets) {
     installImageTextWidgetAccessibilityFactory();
     setSizePolicy(QSizePolicy::Preferred, QSizePolicy::Preferred);
     QString path = from_path(FileSystemOp::resourcesPath() / "cicilogo.png");
@@ -157,6 +158,9 @@ void ImageTextWidget::setImage(const QPixmap& img) {
 
 void ImageTextWidget::setText(const QString& txt) {
     text_ = txt;
+    if (cardStyle_ == CardStyle::Wide) {
+        setToolTip(text_);
+    }
     updateTextMetrics();
     resetMarqueeState();
     updateGeometry();
@@ -299,7 +303,7 @@ void ImageTextWidget::hideEvent(QHideEvent *event) {
 void ImageTextWidget::mousePressEvent(QMouseEvent *event) {
     if (isEnabled() && event->button() == Qt::LeftButton) {
         QPoint p = event->pos();
-        if (favoriteEnabled_ && kHeartRC.contains(p)) {
+        if (favoriteEnabled_ && favoriteRect().contains(p)) {
             isFavorate_ = !isFavorate_;
             update();
             emit liked(isFavorate_);
@@ -312,10 +316,19 @@ void ImageTextWidget::mousePressEvent(QMouseEvent *event) {
 }
 
 void ImageTextWidget::paintEvent(QPaintEvent *event) {
+    QPainter painter(this);
+    if (cardStyle_ == CardStyle::Wide) {
+        drawWideCard(painter);
+    } else {
+        drawCompactCard(painter);
+        CiciWidget::paintEvent(event);
+    }
+}
+
+void ImageTextWidget::drawCompactCard(QPainter& painter) {
     // Ensure the stylesheet is applied.
     QStyleOption opt;
     opt.initFrom(this);
-    QPainter painter(this);
     painter.setRenderHint(QPainter::Antialiasing);
     const bool enabled = isEnabled();
     
@@ -383,7 +396,6 @@ void ImageTextWidget::paintEvent(QPaintEvent *event) {
     }
     
     style()->drawPrimitive(QStyle::PE_Widget, &opt, &painter, this);
-    CiciWidget::paintEvent(event);
 }
 
 void ImageTextWidget::resizeEvent(QResizeEvent *event) {
@@ -441,7 +453,7 @@ int ImageTextWidget::marqueeOffset(int width) const {
 
 bool ImageTextWidget::shouldMarqueeText() const {
     const QRect rect = textRect();
-    return isEnabled()
+    return cardStyle_ == CardStyle::Compact && isEnabled()
            && hovered_
            && hoverEffectEnabled_
            && !text_.isEmpty()
@@ -533,6 +545,81 @@ QSize ImageTextWidget::sizeHint() const {
     sz.setWidth(imgSZ.width() + 8);
     sz.setHeight(imgSZ.height() + textRC_.height() + 8);
     return sz;
+}
+
+QRect ImageTextWidget::favoriteRect() const {
+    return cardStyle_ == CardStyle::Wide ? QRect(width() - 37, 8, 28, 28) : kHeartRC;
+}
+
+void ImageTextWidget::drawWideCard(QPainter& painter) {
+    constexpr int radius = 6;
+    constexpr int padding = 10;
+    const QRect frame = rect().adjusted(0, 0, -1, -1);
+    const int labelHeight = fontMetrics().lineSpacing() * 2 + 12;
+    const QRect preview(1, 1, width() - 2, height() - labelHeight - 1);
+    painter.setRenderHint(QPainter::Antialiasing);
+    painter.setRenderHint(QPainter::SmoothPixmapTransform);
+    painter.setPen(Qt::NoPen);
+    painter.setBrush(selected_ && isEnabled() ? palette().color(QPalette::Highlight).darker(185)
+                                              : palette().color(QPalette::Button));
+    painter.drawRoundedRect(frame, radius, radius);
+
+    const QPixmap& image = image_.isNull() ? defaultImg_ : image_;
+    if (!preview.isEmpty() && !image.isNull()) {
+        QSizeF sourceSize(preview.size());
+        sourceSize.scale(QSizeF(image.size()), Qt::KeepAspectRatio);
+        const QRectF source((image.width() - sourceSize.width()) / 2,
+                            (image.height() - sourceSize.height()) / 3,
+                            sourceSize.width(), sourceSize.height());
+        painter.save();
+        QPainterPath clip;
+        clip.addRoundedRect(QRectF(frame).adjusted(1, 1, -1, -1), radius - 1, radius - 1);
+        painter.setClipPath(clip);
+        if (!isEnabled()) {
+            painter.setOpacity(0.45);
+        }
+        painter.drawPixmap(QRectF(preview), image, source);
+        painter.restore();
+    }
+    if (favoriteEnabled_) {
+        drawHeart(&painter, favoriteRect());
+    }
+
+    const QRect nameRect = rect().adjusted(padding, preview.bottom() + 1, selected_ ? -30 : -padding, -1);
+    painter.setPen(palette().color(QPalette::ButtonText));
+    if (nameRect.width() > 0) {
+        QTextLayout textLayout(text_, font());
+        QTextOption option;
+        option.setWrapMode(QTextOption::WrapAtWordBoundaryOrAnywhere);
+        textLayout.setTextOption(option);
+        textLayout.beginLayout();
+        auto firstLine = textLayout.createLine();
+        if (firstLine.isValid()) {
+            firstLine.setLineWidth(nameRect.width());
+        }
+        textLayout.endLayout();
+
+        if (firstLine.isValid()) {
+            const auto remaining = text_.mid(firstLine.textLength()).trimmed();
+            const auto origin = QPointF(nameRect.x(), nameRect.center().y() - firstLine.height() * (remaining.isEmpty() ? 0.5 : 1.0));
+            firstLine.draw(&painter, origin);
+            if (!remaining.isEmpty()) {
+                const auto lastLine = fontMetrics().elidedText(remaining, Qt::ElideRight, nameRect.width());
+                painter.drawText(origin + QPointF(0, firstLine.height() + firstLine.ascent()), lastLine);
+            }
+        }
+    }
+
+    painter.setBrush(Qt::NoBrush);
+    const QColor border = selected_ ? palette().color(QPalette::Highlight) : palette().color(QPalette::Mid);
+    painter.setPen(border);
+    painter.drawRoundedRect(frame, radius, radius);
+    if (selected_) {
+        const QPoint center(width() - 15, nameRect.center().y());
+        painter.setPen(QPen(border, 2, Qt::SolidLine, Qt::RoundCap, Qt::RoundJoin));
+        const QPoint check[] = {center + QPoint(-5, 0), center + QPoint(-1, 4), center + QPoint(6, -4)};
+        painter.drawPolyline(check, 3);
+    }
 }
 
 void ImageTextWidget::drawHeart(QPainter *painter, const QRectF &rect) {
