@@ -3,25 +3,43 @@
 // See LICENSES/GPL-2.0-or-later.txt for the full license text.
 
 #include <assert.h>
+#include <QFont>
 #include <QLabel>
 #include <QSlider>
 #include <QLineEdit>
 #include <QHBoxLayout>
+#include <QVBoxLayout>
 
 #include "dynamicparamui.h"
 #include "commonui.h"
 #include "../qstringconv.h"
 
 void DynamicParamUIItem::create() {
-	label_ = createFixWidthMarqueeLabel("", 30);
+    label_ = new QLabel;
+    label_->setTextFormat(Qt::PlainText);
+    label_->setWordWrap(true);
+    auto font = label_->font();
+    font.setWeight(QFont::Medium);
+    label_->setFont(font);
+
     slider_ = createSlider();
     editor_ = createEdit();
-    
-    layout_ = new QHBoxLayout;
-    layout_->setSpacing(KSpacing);
-    layout_->addWidget(label_);
-    layout_->addWidget(slider_);
-    layout_->addWidget(editor_);
+    editor_->setAlignment(Qt::AlignRight | Qt::AlignVCenter);
+    label_->setBuddy(slider_);
+
+    auto* header = new QHBoxLayout;
+    header->addWidget(label_, 1);
+    header->addWidget(editor_, 0, Qt::AlignVCenter);
+
+    auto* sliderRow = new QHBoxLayout;
+    sliderRow->setContentsMargins(8, 0, 0, 0);
+    sliderRow->addWidget(slider_);
+
+    layout_ = new QVBoxLayout;
+    layout_->setContentsMargins(10, 0, 10, 0);
+    layout_->setSpacing(2);
+    layout_->addLayout(header);
+    layout_->addLayout(sliderRow);
 }
 
 void DynamicParamUIItem::setIntValue(uint32_t v) {
@@ -60,7 +78,10 @@ void DynamicParamUIItem::setParam(const std::u8string& uiName, const std::u8stri
     minValue_ = min;
     filterIndex_ = filterIndex;
     
-    label_->setText(from_u8(uiName));
+    const auto name = from_u8(uiName);
+    label_->setText(name);
+    slider_->setAccessibleName(name);
+    editor_->setAccessibleName(name);
     setFloatValue(defaultValue_);
 }
 
@@ -72,22 +93,26 @@ void DynamicParamUIItem::setParam(const std::u8string& uiName, const std::u8stri
     minValue_ = min;
     filterIndex_ = filterIndex;
     
-    label_->setText(from_u8(uiName));
+    const auto name = from_u8(uiName);
+    label_->setText(name);
+    slider_->setAccessibleName(name);
+    editor_->setAccessibleName(name);
     setFloatValue(defaultValue_);
 }
 
 void DynamicParamUI::create() {
     layout_ = new QVBoxLayout;
-    layout_->setSpacing(KSpacing);
+    layout_->setContentsMargins(0, 0, 0, 0);
+    layout_->setSpacing(14);
     for (auto i = 0; i < kParamUINumber; i++) {
         items_[i].create();
-        layout_->addItem(items_[i].layout_);
+        layout_->addLayout(items_[i].layout_);
     }
 }
 
 void DynamicParamUI::show(int howMany) {
     assert(howMany <= kParamUINumber);
-    layout_->setSpacing(KSpacing);
+    layout_->setSpacing(14);
     for (auto i = 0; i < howMany; i++) {
         items_[i].show();
     }

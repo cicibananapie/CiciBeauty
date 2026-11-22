@@ -51,6 +51,9 @@ void GridMoreLayout::setVerticalSpacing(int n) {
 }
 
 void GridMoreLayout::addItem(QLayoutItem *item) {
+    if (auto* layout = item->layout()) {
+        addChildLayout(layout);
+    }
     items_.append(item);
 }
 
@@ -95,6 +98,15 @@ int GridMoreLayout::doLayout(const QRect &r, bool testOnly) const {
     int numOfRow = 0;   //number of items that can be contained in this row
     int y = r.y();
     bool foundSelected = false;
+    auto placeDetails = [this, &r, &y, testOnly] {
+        const int width = r.width();
+        const int wrappedHeight = troubleMaker_->hasHeightForWidth() ? troubleMaker_->heightForWidth(width) : -1;
+        const int height = wrappedHeight >= 0 ? wrappedHeight : troubleMaker_->sizeHint().height();
+        if (!testOnly) {
+            troubleMaker_->setGeometry(QRect(r.x(), y, width, height));
+        }
+        y += verticalSpacing_ + height;
+    };
     for (auto i = 0; i < items_.size(); i++) {
         auto item = items_.at(i);
         if (item == troubleMaker_) {
@@ -118,16 +130,8 @@ int GridMoreLayout::doLayout(const QRect &r, bool testOnly) const {
             y += maxRowHeight + verticalSpacing_;
             maxRowHeight = 0;
             if (foundSelected) {
-                QRect rc;
-                rc.setX(r.x());
-                rc.setY(y);
-                rc.setWidth(r.width());
-                rc.setHeight(troubleMaker_->sizeHint().height());
-                if (!testOnly) {
-                    troubleMaker_->setGeometry(rc);
-                }
+                placeDetails();
                 foundSelected = false;
-                y += verticalSpacing_ + rc.height();
             }
             numOfRow = 0;
             rc.setX(r.x());
@@ -138,16 +142,7 @@ int GridMoreLayout::doLayout(const QRect &r, bool testOnly) const {
     
     y += maxRowHeight + verticalSpacing_;
     if (foundSelected) {
-        QRect rc;
-        rc.setX(r.x());
-        rc.setY(y);
-        rc.setWidth(r.width());
-        rc.setHeight(troubleMaker_->sizeHint().height());
-        if (!testOnly) {
-            troubleMaker_->setGeometry(rc);
-        }
-        foundSelected = false;
-        y += verticalSpacing_ + rc.height();
+        placeDetails();
     }
     
     if (!showTroubleMaker_ && troubleMaker_ != nullptr && !testOnly) {

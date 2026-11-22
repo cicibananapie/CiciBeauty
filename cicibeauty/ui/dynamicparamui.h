@@ -11,7 +11,6 @@
 class QLabel;
 class QSlider;
 class QLineEdit;
-class QHBoxLayout;
 class QVBoxLayout;
 
 struct EffectDetailInfo {
@@ -33,7 +32,7 @@ struct DynamicParamUIItem {
     QLabel* label_ = nullptr;
     QSlider* slider_ = nullptr;
     QLineEdit* editor_ = nullptr;
-    QHBoxLayout* layout_ = nullptr;
+    QVBoxLayout* layout_ = nullptr;
     
     std::u8string paramName_;
     float defaultValue_ = 0;
