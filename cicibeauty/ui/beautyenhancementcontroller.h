@@ -11,6 +11,7 @@
 #include "../modelapp.h"
 #include "../lumaclient.h"
 
+class QLabel;
 class QSlider;
 class QLineEdit;
 class QCheckBox;
@@ -40,10 +41,11 @@ private:
     void refreshEnableSkinState();
     void refreshEnableFaceShapingState();
     void bindSliderEditor(QSlider* slider, QLineEdit* editor, EffectDetailInfo* pData);
-    void addParamRow(QVBoxLayout* layout, const QString& name, EffectDetailInfo& param);
-    void addSideRows(QVBoxLayout* layout,
-                     const QString& leftName, EffectDetailInfo& left,
-                     const QString& rightName, EffectDetailInfo& right);
+    QLabel* addParamRow(QVBoxLayout* layout, const QString& name, EffectDetailInfo& param);
+    void addMainParamRow(QVBoxLayout* layout, const QString& name, EffectDetailInfo& param);
+    void addParamGroup(QVBoxLayout* layout, const QString& name, EffectDetailInfo& param,
+                       const QString& leftName, EffectDetailInfo& left,
+                       const QString& rightName, EffectDetailInfo& right);
     QWidget* createFaceTab();
     QWidget* createEyeTab();
     QWidget* createNoseTab();

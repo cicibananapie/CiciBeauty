@@ -6,6 +6,7 @@
 #include <iterator>
 #include <vector>
 #include <QString>
+#include <QFont>
 #include <QLabel>
 #include <QSlider>
 #include <QLineEdit>
@@ -14,6 +15,7 @@
 #include <QTabWidget>
 #include <QInputDialog>
 #include <QScrollArea>
+#include <QScrollBar>
 #include <QSignalBlocker>
 #include <QHBoxLayout>
 #include <QVBoxLayout>
@@ -32,11 +34,47 @@
 #include "../statistics/settingspageanalytics.h"
 
 namespace {
+constexpr int kBeautyParamInset = 10;
+constexpr int kBeautyParamSpacing = 14;
+constexpr int kBeautySideSpacing = 5;
+constexpr qreal kBeautySectionFontScale = 1.15;
+
+void setBeautyTextStyle(QWidget* widget, QFont::Weight weight, qreal scale = 1.0) {
+    auto font = widget->font();
+    font.setWeight(weight);
+    if (scale != 1.0) {
+        if (font.pixelSize() > 0) {
+            font.setPixelSize(qMax(1, qRound(font.pixelSize() * scale)));
+        } else {
+            font.setPointSizeF(font.pointSizeF() * scale);
+        }
+    }
+    widget->setFont(font);
+}
+
+void styleBeautySideLabel(QLabel* label) {
+    // OBS themes can set font-size for all widgets, overriding QWidget::setFont().
+    label->setStyleSheet(QStringLiteral("font-size: 11.2pt; font-weight: normal;"));
+}
+
+QCheckBox* createBeautySectionCheckBox(const QString& name) {
+    auto* checkBox = new QCheckBox(name);
+    setBeautyTextStyle(checkBox, QFont::DemiBold, kBeautySectionFontScale);
+    checkBox->setSizePolicy(QSizePolicy::Minimum, QSizePolicy::Fixed);
+    return checkBox;
+}
+
 QScrollArea* scrollableBeautySection(QWidget* content) {
     auto* scroll = new QScrollArea;
     scroll->setFrameShape(QFrame::NoFrame);
     scroll->setWidgetResizable(true);
+    scroll->setVerticalScrollBarPolicy(Qt::ScrollBarAlwaysOn);
+    content->layout()->setContentsMargins(kBeautyParamInset, 8, kBeautyParamInset, 8);
+    content->layout()->setSpacing(kBeautyParamSpacing);
     scroll->setWidget(content);
+    // QScrollArea fills with the palette's Base color by default.
+    scroll->viewport()->setAutoFillBackground(false);
+    content->setAutoFillBackground(false);
     return scroll;
 }
 
@@ -98,31 +136,38 @@ void SolutionController::setCustomName(const QString& customName) {
 }
 
 void SolutionController::createUI() {
-    skinBeauty_ = createCheckBox(tr("Skin Beauty"));
+    skinBeauty_ = createBeautySectionCheckBox(tr("Skin Beauty"));
     
     skinParams_ = new QWidget;
     auto* skinLayout = new QVBoxLayout(skinParams_);
-    skinLayout->setContentsMargins(0, 0, 0, 0);
-    addParamRow(skinLayout, tr("Whitening"), whiteness_);
-    addParamRow(skinLayout, tr("Clarity"), clarity_);
-    addParamRow(skinLayout, tr("Smoothing"), fullbodySmoothness_);
+    skinLayout->setSpacing(kBeautyParamSpacing);
+    addMainParamRow(skinLayout, tr("Whitening"), whiteness_);
+    addMainParamRow(skinLayout, tr("Clarity"), clarity_);
+    addMainParamRow(skinLayout, tr("Smoothing"), fullbodySmoothness_);
 
-    faceShaping_ = createCheckBox(tr("Face Contouring"));
+    faceShaping_ = createBeautySectionCheckBox(tr("Face Contouring"));
     
     tabBodyShaping_ = new QTabWidget;
     applyDisabledTabStyle(tabBodyShaping_);
+    tabBodyShaping_->setStyleSheet(tabBodyShaping_->styleSheet() +
+                                  QStringLiteral("QTabWidget::pane { border: none; }"));
     tabBodyShaping_->setContentsMargins(0, 0, 0, 0);
-    tabBodyShaping_->addTab(scrollableBeautySection(createFaceTab()), tr("Face"));
+    auto* faceSection = scrollableBeautySection(createFaceTab());
+    tabBodyShaping_->addTab(faceSection, tr("Face"));
     tabBodyShaping_->addTab(scrollableBeautySection(createEyeTab()), tr("Eye"));
     tabBodyShaping_->addTab(scrollableBeautySection(createNoseTab()), tr("Nose"));
     tabBodyShaping_->addTab(scrollableBeautySection(createMouthTab()), tr("Mouth"));
     tabBodyShaping_->addTab(scrollableBeautySection(createEyebrowTab()), tr("Eyebrow"));
     tabBodyShaping_->addTab(scrollableBeautySection(createOtherTab()), tr("Detail Retouching"));
+    // Reserve the same scrollbar gutter above the tabs, even when a short tab is active.
+    const int scrollBarWidth = faceSection->verticalScrollBar()->sizeHint().width();
+    skinLayout->setContentsMargins(kBeautyParamInset, 0, kBeautyParamInset + scrollBarWidth, 0);
     
     QVBoxLayout* vboxTop = new QVBoxLayout;
     vboxTop->setContentsMargins(0, 0, 0, 0);
     vboxTop->addWidget(skinBeauty_);
     vboxTop->addWidget(skinParams_);
+    vboxTop->addSpacing(4);
     vboxTop->addWidget(faceShaping_);
     vboxTop->addWidget(tabBodyShaping_, 1);
     
@@ -355,7 +400,7 @@ void SolutionController::bindSliderEditor(QSlider* slider, QLineEdit* editor, Ef
     });
 }
 
-void SolutionController::addParamRow(QVBoxLayout* layout, const QString& name, EffectDetailInfo& param) {
+QLabel* SolutionController::addParamRow(QVBoxLayout* layout, const QString& name, EffectDetailInfo& param) {
     auto* label = new QLabel(name);
     label->setTextFormat(Qt::PlainText);
     label->setWordWrap(true);
@@ -379,54 +424,69 @@ void SolutionController::addParamRow(QVBoxLayout* layout, const QString& name, E
     row->addLayout(header);
     row->addLayout(sliderRow);
     layout->addLayout(row);
+    return label;
 }
 
-void SolutionController::addSideRows(QVBoxLayout* layout,
-                                    const QString& leftName, EffectDetailInfo& left,
-                                    const QString& rightName, EffectDetailInfo& right) {
+void SolutionController::addMainParamRow(QVBoxLayout* layout, const QString& name, EffectDetailInfo& param) {
+    setBeautyTextStyle(addParamRow(layout, name, param), QFont::Medium);
+}
+
+void SolutionController::addParamGroup(QVBoxLayout* layout, const QString& name, EffectDetailInfo& param,
+                                      const QString& leftName, EffectDetailInfo& left,
+                                      const QString& rightName, EffectDetailInfo& right) {
+    auto* groupLayout = new QVBoxLayout;
+    groupLayout->setSpacing(kBeautySideSpacing);
+    addMainParamRow(groupLayout, name, param);
+
     auto* sideLayout = new QVBoxLayout;
-    sideLayout->setContentsMargins(KHeadSpading, 0, 0, 0);
-    addParamRow(sideLayout, leftName, left);
-    addParamRow(sideLayout, rightName, right);
-    layout->addLayout(sideLayout);
+    sideLayout->setSpacing(kBeautySideSpacing);
+    styleBeautySideLabel(addParamRow(sideLayout, leftName, left));
+    styleBeautySideLabel(addParamRow(sideLayout, rightName, right));
+
+    constexpr int guideOffset = 8;
+    constexpr int guideWidth = 1;
+    auto* guide = new QWidget;
+    guide->setFixedWidth(guideWidth);
+    guide->setStyleSheet(QStringLiteral("background-color: palette(button);"));
+
+    auto* sideGroupLayout = new QHBoxLayout;
+    sideGroupLayout->setContentsMargins(guideOffset, 0, 0, 0);
+    sideGroupLayout->setSpacing(KHeadSpading - guideOffset - guideWidth);
+    sideGroupLayout->addWidget(guide);
+    sideGroupLayout->addLayout(sideLayout, 1);
+    groupLayout->addLayout(sideGroupLayout);
+    layout->addLayout(groupLayout);
 }
 
 QWidget* SolutionController::createFaceTab() {
     auto* tab = new QWidget;
     auto* layout = new QVBoxLayout(tab);
-    addParamRow(layout, tr("Slim face"), slimFace_);
-    addSideRows(layout,
-                tr("Slim Face Left"), slimFaceLeft_,
-                tr("Slim Face Right"), slimFaceRight_);
-    addParamRow(layout, tr("Small face"), smallFace_);
-    addSideRows(layout,
-                tr("Small Face Left"), smallFaceLeft_,
-                tr("Small Face Right"), smallFaceRight_);
-    addParamRow(layout, tr("Face slimming"), faceSlimming_);
-    addParamRow(layout, tr("V Face"), vFace_);
-    addSideRows(layout,
-                tr("V Face Left"), vFaceLeft_,
-                tr("V Face Right"), vFaceRight_);
-    addParamRow(layout, tr("Hairline"), hairLine_);
-    addParamRow(layout, tr("Forehead Width"), foreheadWidth_);
-    addParamRow(layout, tr("Forehead Height"), foreheadHeight_);
-    addParamRow(layout, tr("Temple"), temple_);
-    addSideRows(layout,
-                tr("Left Temple"), templeLeft_,
-                tr("Right Temple"), templeRight_);
-    addParamRow(layout, tr("Zygomatic Bone"), zygomaticBone_);
-    addSideRows(layout,
-                tr("Zygomatic Bone Left"), zygomaticBoneLeft_,
-                tr("Zygomatic Bone Right"), zygomaticBoneRight_);
-    addParamRow(layout, tr("Mandible"), mandible_);
-    addSideRows(layout,
-                tr("Mandible Left"), mandibleLeft_,
-                tr("Mandible Right"), mandibleRight_);
-    addParamRow(layout, tr("Chin"), chin_);
-    addParamRow(layout, tr("Pointed Chin"), pointedChin_);
-    addSideRows(layout,
-                tr("Pointed Chin Left"), pointedChinLeft_,
-                tr("Pointed Chin Right"), pointedChinRight_);
+    addParamGroup(layout, tr("Slim face"), slimFace_,
+                  tr("Slim Face Left"), slimFaceLeft_,
+                  tr("Slim Face Right"), slimFaceRight_);
+    addParamGroup(layout, tr("Small face"), smallFace_,
+                  tr("Small Face Left"), smallFaceLeft_,
+                  tr("Small Face Right"), smallFaceRight_);
+    addMainParamRow(layout, tr("Face slimming"), faceSlimming_);
+    addParamGroup(layout, tr("V Face"), vFace_,
+                  tr("V Face Left"), vFaceLeft_,
+                  tr("V Face Right"), vFaceRight_);
+    addMainParamRow(layout, tr("Hairline"), hairLine_);
+    addMainParamRow(layout, tr("Forehead Width"), foreheadWidth_);
+    addMainParamRow(layout, tr("Forehead Height"), foreheadHeight_);
+    addParamGroup(layout, tr("Temple"), temple_,
+                  tr("Left Temple"), templeLeft_,
+                  tr("Right Temple"), templeRight_);
+    addParamGroup(layout, tr("Zygomatic Bone"), zygomaticBone_,
+                  tr("Zygomatic Bone Left"), zygomaticBoneLeft_,
+                  tr("Zygomatic Bone Right"), zygomaticBoneRight_);
+    addParamGroup(layout, tr("Mandible"), mandible_,
+                  tr("Mandible Left"), mandibleLeft_,
+                  tr("Mandible Right"), mandibleRight_);
+    addMainParamRow(layout, tr("Chin"), chin_);
+    addParamGroup(layout, tr("Pointed Chin"), pointedChin_,
+                  tr("Pointed Chin Left"), pointedChinLeft_,
+                  tr("Pointed Chin Right"), pointedChinRight_);
     layout->addStretch();
     return tab;
 }
@@ -434,30 +494,24 @@ QWidget* SolutionController::createFaceTab() {
 QWidget* SolutionController::createEyeTab() {
     auto* tab = new QWidget;
     auto* layout = new QVBoxLayout(tab);
-    addParamRow(layout, tr("Big eye"), bigEye_);
-    addSideRows(layout,
-                tr("Big eye Left"), bigEyeLeft_,
-                tr("Big eye Right"), bigEyeRight_);
-    addParamRow(layout, tr("Eye height"), eyeHeight_);
-    addSideRows(layout,
-                tr("Eye height Left"), eyeHeightLeft_,
-                tr("Eye height Right"), eyeHeightRight_);
-    addParamRow(layout, tr("Eye width"), eyeWidth_);
-    addSideRows(layout,
-                tr("Eye width Left"), eyeWidthLeft_,
-                tr("Eye width Right"), eyeWidthRight_);
-    addParamRow(layout, tr("Eye distance"), eyeDistance_);
-    addSideRows(layout,
-                tr("Eye distance Left"), eyeDistanceLeft_,
-                tr("Eye distance Right"), eyeDistanceRight_);
-    addParamRow(layout, tr("Eye corner"), eyeCorner_);
-    addSideRows(layout,
-                tr("Eye corner Left"), eyeCornerLeft_,
-                tr("Eye corner Right"), eyeCornerRight_);
-    addParamRow(layout, tr("Eye pos"), eyePos_);
-    addSideRows(layout,
-                tr("Eye pos Left"), eyePosLeft_,
-                tr("Eye pos Right"), eyePosRight_);
+    addParamGroup(layout, tr("Big eye"), bigEye_,
+                  tr("Big eye Left"), bigEyeLeft_,
+                  tr("Big eye Right"), bigEyeRight_);
+    addParamGroup(layout, tr("Eye height"), eyeHeight_,
+                  tr("Eye height Left"), eyeHeightLeft_,
+                  tr("Eye height Right"), eyeHeightRight_);
+    addParamGroup(layout, tr("Eye width"), eyeWidth_,
+                  tr("Eye width Left"), eyeWidthLeft_,
+                  tr("Eye width Right"), eyeWidthRight_);
+    addParamGroup(layout, tr("Eye distance"), eyeDistance_,
+                  tr("Eye distance Left"), eyeDistanceLeft_,
+                  tr("Eye distance Right"), eyeDistanceRight_);
+    addParamGroup(layout, tr("Eye corner"), eyeCorner_,
+                  tr("Eye corner Left"), eyeCornerLeft_,
+                  tr("Eye corner Right"), eyeCornerRight_);
+    addParamGroup(layout, tr("Eye pos"), eyePos_,
+                  tr("Eye pos Left"), eyePosLeft_,
+                  tr("Eye pos Right"), eyePosRight_);
     layout->addStretch();
     return tab;
 }
@@ -465,14 +519,13 @@ QWidget* SolutionController::createEyeTab() {
 QWidget* SolutionController::createNoseTab() {
     auto* tab = new QWidget;
     auto* layout = new QVBoxLayout(tab);
-    addParamRow(layout, tr("Slim nose"), slimNose_);
-    addParamRow(layout, tr("Slim nostril"), slimNostril_);
-    addSideRows(layout,
-                tr("Slim nostril Left"), slimNostrilLeft_,
-                tr("Slim nostril Right"), slimNostrilRight_);
-    addParamRow(layout, tr("Slim nose bridge"), slimNoseBridge_);
-    addParamRow(layout, tr("Straighten nose"), straightenNose_);
-    addParamRow(layout, tr("Nose pos"), nosePos_);
+    addMainParamRow(layout, tr("Slim nose"), slimNose_);
+    addParamGroup(layout, tr("Slim nostril"), slimNostril_,
+                  tr("Slim nostril Left"), slimNostrilLeft_,
+                  tr("Slim nostril Right"), slimNostrilRight_);
+    addMainParamRow(layout, tr("Slim nose bridge"), slimNoseBridge_);
+    addMainParamRow(layout, tr("Straighten nose"), straightenNose_);
+    addMainParamRow(layout, tr("Nose pos"), nosePos_);
     layout->addStretch();
     return tab;
 }
@@ -480,10 +533,10 @@ QWidget* SolutionController::createNoseTab() {
 QWidget* SolutionController::createMouthTab() {
     auto* tab = new QWidget;
     auto* layout = new QVBoxLayout(tab);
-    addParamRow(layout, tr("Mouth"), mouth_);
-    addParamRow(layout, tr("Mouth tilt"), mouthTilt_);
-    addParamRow(layout, tr("Philtrum"), philtrum_);
-    addParamRow(layout, tr("Mouth pos"), mouthPos_);
+    addMainParamRow(layout, tr("Mouth"), mouth_);
+    addMainParamRow(layout, tr("Mouth tilt"), mouthTilt_);
+    addMainParamRow(layout, tr("Philtrum"), philtrum_);
+    addMainParamRow(layout, tr("Mouth pos"), mouthPos_);
     layout->addStretch();
     return tab;
 }
@@ -491,22 +544,18 @@ QWidget* SolutionController::createMouthTab() {
 QWidget* SolutionController::createEyebrowTab() {
     auto* tab = new QWidget;
     auto* layout = new QVBoxLayout(tab);
-    addParamRow(layout, tr("Eyebrow thickness"), eyebrowThickness_);
-    addSideRows(layout,
-                tr("Eyebrow thickness Left"), eyebrowThicknessLeft_,
-                tr("Eyebrow thickness Right"), eyebrowThicknessRight_);
-    addParamRow(layout, tr("Eyebrow distance"), eyebrowDistance_);
-    addSideRows(layout,
-                tr("Eyebrow distance Left"), eyebrowDistanceLeft_,
-                tr("Eyebrow distance Right"), eyebrowDistanceRight_);
-    addParamRow(layout, tr("Eyebrow tilt"), eyebrowTilt_);
-    addSideRows(layout,
-                tr("Eyebrow tilt Left"), eyebrowTiltLeft_,
-                tr("Eyebrow tilt Right"), eyebrowTiltRight_);
-    addParamRow(layout, tr("Eyebrow pos"), eyebrowPos_);
-    addSideRows(layout,
-                tr("Eyebrow pos Left"), eyebrowPosLeft_,
-                tr("Eyebrow pos Right"), eyebrowPosRight_);
+    addParamGroup(layout, tr("Eyebrow thickness"), eyebrowThickness_,
+                  tr("Eyebrow thickness Left"), eyebrowThicknessLeft_,
+                  tr("Eyebrow thickness Right"), eyebrowThicknessRight_);
+    addParamGroup(layout, tr("Eyebrow distance"), eyebrowDistance_,
+                  tr("Eyebrow distance Left"), eyebrowDistanceLeft_,
+                  tr("Eyebrow distance Right"), eyebrowDistanceRight_);
+    addParamGroup(layout, tr("Eyebrow tilt"), eyebrowTilt_,
+                  tr("Eyebrow tilt Left"), eyebrowTiltLeft_,
+                  tr("Eyebrow tilt Right"), eyebrowTiltRight_);
+    addParamGroup(layout, tr("Eyebrow pos"), eyebrowPos_,
+                  tr("Eyebrow pos Left"), eyebrowPosLeft_,
+                  tr("Eyebrow pos Right"), eyebrowPosRight_);
     layout->addStretch();
     return tab;
 }
@@ -514,13 +563,13 @@ QWidget* SolutionController::createEyebrowTab() {
 QWidget* SolutionController::createOtherTab() {
     auto* tab = new QWidget;
     auto* layout = new QVBoxLayout(tab);
-    addParamRow(layout, tr("Forehead line"), foreheadLine_);
-    addParamRow(layout, tr("Smile line"), smileLine_);
-    addParamRow(layout, tr("Whiten teeth"), whitenTeeth_);
-    addParamRow(layout, tr("Dark circle"), darkCircle_);
-    addParamRow(layout, tr("Brighten eye"), brightenEye_);
-    addParamRow(layout, tr("Mid face"), midFace_);
-    addParamRow(layout, tr("Lower face"), lowerFace_);
+    addMainParamRow(layout, tr("Forehead line"), foreheadLine_);
+    addMainParamRow(layout, tr("Smile line"), smileLine_);
+    addMainParamRow(layout, tr("Whiten teeth"), whitenTeeth_);
+    addMainParamRow(layout, tr("Dark circle"), darkCircle_);
+    addMainParamRow(layout, tr("Brighten eye"), brightenEye_);
+    addMainParamRow(layout, tr("Mid face"), midFace_);
+    addMainParamRow(layout, tr("Lower face"), lowerFace_);
     layout->addStretch();
     return tab;
 }
