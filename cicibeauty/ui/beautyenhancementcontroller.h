@@ -11,12 +11,11 @@
 #include "../modelapp.h"
 #include "../lumaclient.h"
 
-class QLabel;
 class QSlider;
 class QLineEdit;
 class QCheckBox;
-class QRadioButton;
 class QTabWidget;
+class QVBoxLayout;
 class GlobalModel;
 
 class SolutionController: public CiciWidget {
@@ -40,8 +39,11 @@ private:
     void createUI();
     void refreshEnableSkinState();
     void refreshEnableFaceShapingState();
-    void initSmoothnessValues();
     void bindSliderEditor(QSlider* slider, QLineEdit* editor, EffectDetailInfo* pData);
+    void addParamRow(QVBoxLayout* layout, const QString& name, EffectDetailInfo& param);
+    void addSideRows(QVBoxLayout* layout,
+                     const QString& leftName, EffectDetailInfo& left,
+                     const QString& rightName, EffectDetailInfo& right);
     QWidget* createFaceTab();
     QWidget* createEyeTab();
     QWidget* createNoseTab();
@@ -50,15 +52,7 @@ private:
     QWidget* createOtherTab();
     
 private:
-    QLabel* whitenLabel_ = nullptr;
-    QSlider* whitenSlider_ = nullptr;
-    QLineEdit* whitenEdit_ = nullptr;
-    QLabel* clarityLabel_ = nullptr;
-    QSlider* claritySlider_ = nullptr;
-    QLineEdit* clarityEdit_ = nullptr;
-    QLabel* smoothingLabel_ = nullptr;
-    QSlider* smoothingSlider_ = nullptr;
-    QLineEdit* smoothingEdit_ = nullptr;
+    QWidget* skinParams_ = nullptr;
     QCheckBox* skinBeauty_ = nullptr;
     QCheckBox* faceShaping_ = nullptr;
     QTabWidget* tabBodyShaping_ = nullptr;

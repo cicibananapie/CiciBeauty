@@ -1380,6 +1380,14 @@ Qt：%4</translation>
 <context>
     <name>SolutionController</name>
     <message>
+        <source>Face Contouring</source>
+        <translation>面部轮廓</translation>
+    </message>
+    <message>
+        <source>Detail Retouching</source>
+        <translation>局部修饰</translation>
+    </message>
+    <message>
         <source>Sln %1</source>
         <translation type="vanished">方案 %1</translation>
     </message>
