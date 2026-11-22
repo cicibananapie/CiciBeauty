@@ -122,7 +122,6 @@ class BodyShapingSolutionController: public CiciWidget {
     
 public:
     BodyShapingSolutionController(GlobalModel *app, QWidget *parent = nullptr);
-    ~BodyShapingSolutionController();
     QString customName() const;
     QString displayName() const;
     void setCustomName(const QString& customName);

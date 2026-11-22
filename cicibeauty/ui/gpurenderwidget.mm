@@ -381,7 +381,8 @@ public:
 
             const QRect widgetGlobalRect(widget->mapToGlobal(QPoint(0, 0)), widget->size());
             visibleGlobalRect = visibleGlobalRect.intersected(widgetGlobalRect);
-            if (visibleGlobalRect.isEmpty()) {
+            // An owned top-level window is not clipped by its QWidget parent.
+            if (visibleGlobalRect.isEmpty() || widget->isWindow()) {
                 break;
             }
         }

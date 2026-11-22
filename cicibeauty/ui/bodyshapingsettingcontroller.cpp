@@ -167,6 +167,7 @@ int ManualLengthenLegController::nextSolutionId_ = 0;
 
 ManualLengthenLegController::ManualLengthenLegController(GlobalModel* app, QWidget* parent/* = nullptr*/)
 : CiciWidget(parent), solutionId_(generateSolutionId()), app_(app) {
+    setWindowFlag(Qt::Dialog);
     setWindowTitle(tr("Edit zones"));
     applyCiciWindowIcon(this);
     if (kManualLegDebugLog) {
@@ -748,7 +749,7 @@ void BodyShapingSolutionController::createUI() {
     aiLayout->addStretch();
     aiPage_->setLayout(aiLayout);
     
-    manualPopup_ = new ManualLengthenLegController(app_);
+    manualPopup_ = new ManualLengthenLegController(app_, this);
     QObject::connect(manualPopup_, &ManualLengthenLegController::stateChanged,
                      this, [this](const QString& uiAction) {
                          if (!loadingConfig_) {
@@ -814,11 +815,9 @@ void BodyShapingSolutionController::createUI() {
                                          to_u8(displayName()),
                                          u8"editor_open");
         manualPopup_->show();
+        manualPopup_->raise();
+        manualPopup_->activateWindow();
     });
-}
-
-BodyShapingSolutionController::~BodyShapingSolutionController() {
-    delete manualPopup_;
 }
 
 void BodyShapingSolutionController::bindSliderEditor(QSlider* slider, QLineEdit* editor, const char* key) {
