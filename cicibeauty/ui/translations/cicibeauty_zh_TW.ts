@@ -533,6 +533,21 @@ Qt：%4</translation>
 <context>
     <name>FilterSettingController</name>
     <message>
+        <location filename="../filtersettingcontroller.cpp" line="90"/>
+        <source>Current filter</source>
+        <translation>目前濾鏡</translation>
+    </message>
+    <message>
+        <location filename="../filtersettingcontroller.cpp" line="236"/>
+        <source>No filter selected</source>
+        <translation>未選取濾鏡</translation>
+    </message>
+    <message>
+        <location filename="../filtersettingcontroller.cpp" line="239"/>
+        <source>%1 (disabled)</source>
+        <translation>%1（已停用）</translation>
+    </message>
+    <message>
         <location filename="../filtersettingcontroller.cpp" line="64"/>
         <source>Camera:</source>
         <translation>攝影機:</translation>
@@ -548,9 +563,39 @@ Qt：%4</translation>
         <translation>啟用濾鏡</translation>
     </message>
     <message>
-        <location filename="../filtersettingcontroller.cpp" line="91"/>
-        <source>All</source>
-        <translation>全部</translation>
+        <location filename="../filtersettingcontroller.cpp" line="367"/>
+        <source>No filters in this category</source>
+        <translation>此分類暫無濾鏡</translation>
+    </message>
+    <message>
+        <location filename="../filtersettingcontroller.cpp" line="370"/>
+        <source>Natural</source>
+        <translation>自然膚色</translation>
+    </message>
+    <message>
+        <location filename="../filtersettingcontroller.cpp" line="371"/>
+        <source>Fresh</source>
+        <translation>清新明亮</translation>
+    </message>
+    <message>
+        <location filename="../filtersettingcontroller.cpp" line="372"/>
+        <source>Film</source>
+        <translation>復古膠片</translation>
+    </message>
+    <message>
+        <location filename="../filtersettingcontroller.cpp" line="373"/>
+        <source>Moody</source>
+        <translation>氛圍色調</translation>
+    </message>
+    <message>
+        <location filename="../filtersettingcontroller.cpp" line="374"/>
+        <source>B/W</source>
+        <translation>黑白</translation>
+    </message>
+    <message>
+        <location filename="../filtersettingcontroller.cpp" line="375"/>
+        <source>Uncategorized</source>
+        <translation>未分類</translation>
     </message>
     <message>
         <location filename="../filtersettingcontroller.cpp" line="107"/>

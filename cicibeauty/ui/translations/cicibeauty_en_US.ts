@@ -533,6 +533,21 @@ Qt: %4</translation>
 <context>
     <name>FilterSettingController</name>
     <message>
+        <location filename="../filtersettingcontroller.cpp" line="90"/>
+        <source>Current filter</source>
+        <translation>Current filter</translation>
+    </message>
+    <message>
+        <location filename="../filtersettingcontroller.cpp" line="236"/>
+        <source>No filter selected</source>
+        <translation>No filter selected</translation>
+    </message>
+    <message>
+        <location filename="../filtersettingcontroller.cpp" line="239"/>
+        <source>%1 (disabled)</source>
+        <translation>%1 (disabled)</translation>
+    </message>
+    <message>
         <location filename="../filtersettingcontroller.cpp" line="64"/>
         <source>Camera:</source>
         <translation>Camera:</translation>
@@ -548,9 +563,39 @@ Qt: %4</translation>
         <translation>Enable filter</translation>
     </message>
     <message>
-        <location filename="../filtersettingcontroller.cpp" line="91"/>
-        <source>All</source>
-        <translation>All</translation>
+        <location filename="../filtersettingcontroller.cpp" line="367"/>
+        <source>No filters in this category</source>
+        <translation>No filters in this category</translation>
+    </message>
+    <message>
+        <location filename="../filtersettingcontroller.cpp" line="370"/>
+        <source>Natural</source>
+        <translation>Natural</translation>
+    </message>
+    <message>
+        <location filename="../filtersettingcontroller.cpp" line="371"/>
+        <source>Fresh</source>
+        <translation>Fresh</translation>
+    </message>
+    <message>
+        <location filename="../filtersettingcontroller.cpp" line="372"/>
+        <source>Film</source>
+        <translation>Film</translation>
+    </message>
+    <message>
+        <location filename="../filtersettingcontroller.cpp" line="373"/>
+        <source>Moody</source>
+        <translation>Moody</translation>
+    </message>
+    <message>
+        <location filename="../filtersettingcontroller.cpp" line="374"/>
+        <source>B/W</source>
+        <translation>B/W</translation>
+    </message>
+    <message>
+        <location filename="../filtersettingcontroller.cpp" line="375"/>
+        <source>Uncategorized</source>
+        <translation>Uncategorized</translation>
     </message>
     <message>
         <location filename="../filtersettingcontroller.cpp" line="107"/>
