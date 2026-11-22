@@ -35,7 +35,6 @@
 
 namespace {
 constexpr uint32_t kEmergencyUiValue = 50;
-constexpr int kMakeupCategoryLabelWidth = 80;
 
 const char8_t* stylizedMakeupParamKey(uint32_t index) {
     static constexpr const char8_t* keys[] = {
@@ -412,13 +411,10 @@ MakeupCategoryWidget::MakeupCategoryWidget(
     QString name = I18nSupport::localizedName(j);
     this->setId(id);
     QVBoxLayout* vbox = new QVBoxLayout;
-    {
-        QHBoxLayout* hbox = new QHBoxLayout;
-        categoryNameLabel_ = createFixWidthMarqueeLabel(name, kMakeupCategoryLabelWidth);
-        hbox->addWidget(categoryNameLabel_);
-        hbox->addStretch();
-        vbox->addItem(hbox);
-    }
+    categoryNameLabel_ = new QLabel(name);
+    categoryNameLabel_->setTextFormat(Qt::PlainText);
+    categoryNameLabel_->setWordWrap(true);
+    vbox->addWidget(categoryNameLabel_);
     {
         dynamicParamUI_.create();
         

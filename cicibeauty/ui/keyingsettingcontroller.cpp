@@ -613,7 +613,6 @@ GreenScreenKeyingController::GreenScreenKeyingController(GlobalModel *app, QWidg
 }
 
 void GreenScreenKeyingController::createUI() {
-    constexpr int kKeyingParamLabelWidth = 110;
     constexpr int kColorPickValueLabelWidth = 90;
     QVBoxLayout* vbox = new QVBoxLayout;
     {
@@ -624,7 +623,8 @@ void GreenScreenKeyingController::createUI() {
         vbox->addItem(hbox);
     }
     {
-        QLabel* label = createFixWidthMarqueeLabel(tr("Color picking"), kKeyingParamLabelWidth);
+        auto* label = new QLabel(tr("Color picking"));
+        label->setWordWrap(true);
         colorPickLabel_ = createFixWidthLabel("", kColorPickValueLabelWidth);
         QPushButton* aiPick = createMarqueeButton(tr("AI color pick"));
         QPushButton* manualPick = createMarqueeButton(tr("manual color pick"));
@@ -641,7 +641,8 @@ void GreenScreenKeyingController::createUI() {
         QObject::connect(aiPick, &QPushButton::clicked, this, &GreenScreenKeyingController::onAIColorPickingBtnClicked);
     }
     {
-        QLabel* label = createFixWidthMarqueeLabel(tr("No-keying zone"), kKeyingParamLabelWidth);
+        auto* label = new QLabel(tr("No-keying zone"));
+        label->setWordWrap(true);
         QPushButton* btn = createMarqueeButton(tr("Set nokeying zone"));
         QHBoxLayout* hbox = new QHBoxLayout;
         hbox->setSpacing(KSpacing);
