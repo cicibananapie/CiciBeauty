@@ -125,7 +125,8 @@ void ActionGroupWidget::addActions(const nlohmann::json& j) {
             uint32_t id = ac["id"];
             QString name = I18nSupport::localizedName(ac);
             QString icon = from_json(ac.value("iconpath", nlohmann::json()));
-            auto* w = new EffectItemWidget(app_);
+            auto* w = new EffectItemWidget(app_, nullptr, ImageTextWidget::CardStyle::Wide);
+            actionsWidget->setMinimumWidth(w->sizeHint().width());
             w->setId(id);
             w->setText(name);
             w->setImage(icon);
@@ -512,7 +513,8 @@ void AIEffectController::applyEffectFavorite(EffectItemViews& item, bool favorit
     }
 
     if (favorite) {
-        auto* widget = new EffectItemWidget(app_);
+        auto* widget = new EffectItemWidget(app_, nullptr, ImageTextWidget::CardStyle::Wide);
+        group.grid_->parentWidget()->setMinimumWidth(widget->sizeHint().width());
         widget->setId(item.effectId_);
         widget->setText(item.text_);
         widget->setImage(item.iconPath_);

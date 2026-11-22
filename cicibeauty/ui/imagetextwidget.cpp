@@ -532,6 +532,10 @@ void ImageTextWidget::showDefaultImage() {
 }
 
 QSize ImageTextWidget::sizeHint() const {
+    if (cardStyle_ == CardStyle::Wide) {
+        return QSize(160, 140);
+    }
+
     QSize imgSZ = imageDisplaySize_;
     if (!imgSZ.isValid()) {
         const QPixmap* img = &image_;

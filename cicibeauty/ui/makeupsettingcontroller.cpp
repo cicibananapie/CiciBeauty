@@ -36,6 +36,12 @@
 namespace {
 constexpr uint32_t kEmergencyUiValue = 50;
 
+EffectItemWidget* createMakeupCard(GlobalModel* app, QWidget* parent) {
+    auto* card = new EffectItemWidget(app, parent, ImageTextWidget::CardStyle::Wide);
+    card->setFavoriteEnabled(false);
+    return card;
+}
+
 const char8_t* stylizedMakeupParamKey(uint32_t index) {
     static constexpr const char8_t* keys[] = {
         u8"lip",
@@ -148,7 +154,7 @@ void StylizedMakeupController::loadEffectList() {
         uint32_t id = item["id"];
         QString name = I18nSupport::localizedName(item);
         QString icon = from_json(item.value("iconpath", nlohmann::json()));
-        auto* w = new EffectItemWidget(app_, this);
+        auto* w = createMakeupCard(app_, this);
         w->setId(id);
         w->setText(name);
         w->setImage(icon);
@@ -632,7 +638,7 @@ void MakeupCategoryWidget::addWidgets(const nlohmann::json& j) {
         uint32_t id = item["id"];
         QString name = I18nSupport::localizedName(item);
         QString icon = from_json(item.value("iconpath", nlohmann::json()));
-        auto* w = new EffectItemWidget(app_, this);
+        auto* w = createMakeupCard(app_, this);
         w->setId(id);
         w->setText(name);
         w->setImage(icon);
