@@ -7,6 +7,7 @@
 #include <cmath>
 #include <iterator>
 #include <QLabel>
+#include <QFont>
 #include <QPushButton>
 #include <QRadioButton>
 #include <QButtonGroup>
@@ -685,52 +686,67 @@ void BodyShapingSolutionController::setCustomName(const QString& customName) {
 }
 
 void BodyShapingSolutionController::createUI() {
-    QLabel* slimBodyLabel = createFixWidthMarqueeLabel(tr("Slim body"));
+    auto addParamRow = [](QVBoxLayout* layout, const QString& name, QSlider* slider, QLineEdit* editor) {
+        auto* label = new QLabel(name);
+        label->setTextFormat(Qt::PlainText);
+        label->setWordWrap(true);
+        auto font = label->font();
+        font.setWeight(QFont::Medium);
+        label->setFont(font);
+        label->setBuddy(slider);
+        slider->setAccessibleName(name);
+        editor->setAccessibleName(name);
+        editor->setAlignment(Qt::AlignRight | Qt::AlignVCenter);
+
+        auto* header = new QHBoxLayout;
+        header->addWidget(label, 1);
+        header->addWidget(editor, 0, Qt::AlignVCenter);
+
+        auto* sliderRow = new QHBoxLayout;
+        sliderRow->setContentsMargins(8, 0, 0, 0);
+        sliderRow->addWidget(slider);
+
+        auto* row = new QVBoxLayout;
+        row->setSpacing(2);
+        row->addLayout(header);
+        row->addLayout(sliderRow);
+        layout->addLayout(row);
+    };
+
+    auto* solutionLayout = new QVBoxLayout;
+    solutionLayout->setContentsMargins(10, 8, 10, 8);
+    solutionLayout->setSpacing(14);
+
     slimBodySlider_ = createSlider();
     slimBodyEditor_ = createEdit();
     bindSliderEditor(slimBodySlider_, slimBodyEditor_, "slimBody");
-    
-    QHBoxLayout* hbox = new QHBoxLayout;
-    hbox->setSpacing(KSpacing);
-    hbox->addWidget(slimBodyLabel);
-    hbox->addWidget(slimBodySlider_);
-    hbox->addWidget(slimBodyEditor_);
-    
-    QLabel* smallHeadLabel = createFixWidthMarqueeLabel(tr("Small head"));
+    addParamRow(solutionLayout, tr("Slim body"), slimBodySlider_, slimBodyEditor_);
+
     smallHeadSlider_ = createSlider();
     smallHeadEditor_ = createEdit();
     bindSliderEditor(smallHeadSlider_, smallHeadEditor_, "smallHead");
-    
-    QHBoxLayout* hbox1 = new QHBoxLayout;
-    hbox1->setSpacing(KSpacing);
-    hbox1->addWidget(smallHeadLabel);
-    hbox1->addWidget(smallHeadSlider_);
-    hbox1->addWidget(smallHeadEditor_);
+    addParamRow(solutionLayout, tr("Small head"), smallHeadSlider_, smallHeadEditor_);
     
     manualLeg_ = createRadioButton(tr("Manual lengthen leg"));
     AILeg_ = createRadioButton(tr("AI lengthen leg"));
     
-    QHBoxLayout* hbox2 = new QHBoxLayout;
-    hbox2->setSpacing(KSpacing);
-    hbox2->addWidget(manualLeg_);
-    hbox2->addWidget(AILeg_);
-    hbox2->addStretch();
+    auto* legModeLayout = new QHBoxLayout;
+    legModeLayout->setSpacing(KSpacing);
+    legModeLayout->addWidget(manualLeg_);
+    legModeLayout->addWidget(AILeg_);
+    legModeLayout->addStretch();
+    solutionLayout->addLayout(legModeLayout);
     
     aiPage_ = new QWidget;
-    QLabel* longLegLabel = new QLabel(tr("Long leg"));
     longLegSlider_ = createSlider();
     longLegEditor_ = createEdit();
     bindSliderEditor(longLegSlider_, longLegEditor_, "longLeg");
-    
-    QHBoxLayout* hbox3 = new QHBoxLayout;
-    hbox3->setSpacing(KSpacing);
-    hbox3->addWidget(longLegLabel);
-    hbox3->addWidget(longLegSlider_);
-    hbox3->addWidget(longLegEditor_);
-    QVBoxLayout* vbox = new QVBoxLayout;
-    vbox->addItem(hbox3);
-    vbox->addStretch();
-    aiPage_->setLayout(vbox);
+
+    auto* aiLayout = new QVBoxLayout;
+    aiLayout->setContentsMargins(0, 0, 0, 0);
+    addParamRow(aiLayout, tr("Long leg"), longLegSlider_, longLegEditor_);
+    aiLayout->addStretch();
+    aiPage_->setLayout(aiLayout);
     
     manualPopup_ = new ManualLengthenLegController(app_);
     QObject::connect(manualPopup_, &ManualLengthenLegController::stateChanged,
@@ -767,14 +783,8 @@ void BodyShapingSolutionController::createUI() {
     stackedWidget_->addWidget(aiPage_);
     stackedWidget_->addWidget(manualPage_);
     
-    QVBoxLayout* vbox1 = new QVBoxLayout;
-    vbox1->setSpacing(KSpacing);
-    vbox1->addItem(hbox);
-    vbox1->addItem(hbox1);
-    vbox1->addItem(hbox2);
-    vbox1->addWidget(stackedWidget_);
-    
-    this->setLayout(vbox1);
+    solutionLayout->addWidget(stackedWidget_);
+    this->setLayout(solutionLayout);
     
     QObject::connect(manualLeg_, &QRadioButton::toggled, this, [this](bool checked) {
         if (checked) {
@@ -890,11 +900,10 @@ void BodyShapingSettingController::createUI() {
     
     tabWidget_ = new QTabWidget;
     applyDisabledTabStyle(tabWidget_);
-    tabWidget_->setTabsClosable(true);
     
     newSlnWidget_ = new QWidget;
     tabWidget_->addTab(newSlnWidget_, tr("+ New Sln"));
-    refreshNewSolutionTabCloseButton();
+    refreshSolutionTabCloseButtons();
     
     QVBoxLayout* vbox = new QVBoxLayout;
     vbox->addItem(hbox);
@@ -951,15 +960,21 @@ int BodyShapingSettingController::selectedSolutionIndexAfterRemove(int removedIn
     return removedIndex < remaining ? removedIndex : remaining - 1;
 }
 
-void BodyShapingSettingController::refreshNewSolutionTabCloseButton() {
+void BodyShapingSettingController::refreshSolutionTabCloseButtons() {
     const int index = tabWidget_->indexOf(newSlnWidget_);
     assert(index >= 0);
     if (index < 0) {
         return;
     }
 
-    tabWidget_->tabBar()->setTabButton(index, QTabBar::LeftSide, nullptr);
-    tabWidget_->tabBar()->setTabButton(index, QTabBar::RightSide, nullptr);
+    tabWidget_->setTabsClosable(solutionTabCount() > 1);
+    auto* tabBar = tabWidget_->tabBar();
+    for (const auto side : {QTabBar::LeftSide, QTabBar::RightSide}) {
+        if (auto* button = tabBar->tabButton(index, side)) {
+            tabBar->setTabButton(index, side, nullptr);
+            button->deleteLater();
+        }
+    }
 }
 
 void BodyShapingSettingController::onEnableMakeupStateChanged(int s) {
@@ -972,6 +987,9 @@ void BodyShapingSettingController::onEnableMakeupStateChanged(int s) {
 void BodyShapingSettingController::onTabCloseRequested(int index) {
     if (!isSolutionTab(index)) {
         assert(false);
+        return;
+    }
+    if (solutionTabCount() <= 1) {
         return;
     }
 
@@ -991,7 +1009,7 @@ void BodyShapingSettingController::onTabCloseRequested(int index) {
         selected = selectedSolutionIndexAfterRemove(index);
         assert(selected >= 0);
         tabWidget_->setCurrentIndex(selected);
-        refreshNewSolutionTabCloseButton();
+        refreshSolutionTabCloseButtons();
     }
     delete w;
     if (!loadingConfig_) {
@@ -1024,7 +1042,7 @@ void BodyShapingSettingController::onTabBarClicked(int index) {
         QSignalBlocker blocker(tabWidget_);
         tabWidget_->insertTab(index, solutionTab, solutionTab->displayName());
         tabWidget_->setCurrentIndex(index);
-        refreshNewSolutionTabCloseButton();
+        refreshSolutionTabCloseButtons();
     }
     QObject::connect(solutionTab, &BodyShapingSolutionController::fieldChanged, this,
                      [this, solutionTab](const QString& key, const nlohmann::json& value) {
@@ -1104,7 +1122,7 @@ void BodyShapingSettingController::resetState(bool) {
     if (newSlnWidget_ != nullptr && tabWidget_->indexOf(newSlnWidget_) >= 0) {
         tabWidget_->setCurrentWidget(newSlnWidget_);
     }
-    refreshNewSolutionTabCloseButton();
+    refreshSolutionTabCloseButtons();
 
     refreshEnableState();
 }
@@ -1139,7 +1157,7 @@ void BodyShapingSettingController::json2Me(const nlohmann::json& j) {
         tabWidget_->insertTab(index, sln, sln->displayName());
     }
 
-    refreshNewSolutionTabCloseButton();
+    refreshSolutionTabCloseButtons();
     assert(!arr.empty());
     if (arr.empty()) {
         loadingConfig_ = false;

@@ -185,7 +185,7 @@ private:
     bool isSolutionTab(int index) const;
     int solutionTabCount() const;
     int selectedSolutionIndexAfterRemove(int removedIndex) const;
-    void refreshNewSolutionTabCloseButton();
+    void refreshSolutionTabCloseButtons();
     void emitSolutionFieldPatch(BodyShapingSolutionController* solution,
                                 const QString& key,
                                 const nlohmann::json& value,
