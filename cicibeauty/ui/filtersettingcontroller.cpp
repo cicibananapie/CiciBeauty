@@ -12,7 +12,6 @@
 #include <QSignalBlocker>
 #include <QHBoxLayout>
 #include <QSet>
-#include <QSizePolicy>
 #include <QVBoxLayout>
 
 #include "nlohmann/json.hpp"
@@ -33,7 +32,6 @@
 namespace {
 constexpr std::u8string_view kFavoritePage = u8"filter";
 const QString kFavoritesCategory = QStringLiteral("favorites");
-constexpr int kCardHeight = 180;
 
 using JsonUtility::boolAt;
 using JsonUtility::uintAt;
@@ -358,8 +356,6 @@ void FilterSettingController::loadEffectList() {
         const auto& item = list[i];
         auto* w = new EffectItemWidget(app_, effectGrid_, ImageTextWidget::CardStyle::Wide);
         w->hide();
-        w->setFixedHeight(kCardHeight);
-        w->setSizePolicy(QSizePolicy::Ignored, QSizePolicy::Fixed);
         w->setId(item["id"]);
         w->setText(I18nSupport::localizedName(item));
         w->setImage(from_json(item.value("iconpath", nlohmann::json())));
