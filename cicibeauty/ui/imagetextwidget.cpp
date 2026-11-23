@@ -33,6 +33,12 @@ constexpr int kMarqueeStartDelayMs = 300;
 
 namespace {
 
+constexpr int kWideCardWidth = 160;
+constexpr int kWideCardPadding = 6;
+constexpr int kWidePreviewSize = kWideCardWidth - kWideCardPadding * 2;
+constexpr int kWideTitleGap = 6;
+constexpr int kWideTitleTop = kWideCardPadding + kWidePreviewSize + kWideTitleGap;
+
 class AccessibleImageTextWidget final : public QAccessibleWidget {
 public:
     explicit AccessibleImageTextWidget(ImageTextWidget* widget)
@@ -98,7 +104,8 @@ void installImageTextWidgetAccessibilityFactory() {
 ImageTextWidget::ImageTextWidget(AssetsMgr* assets, QWidget* parent, CardStyle cardStyle)
 : CiciWidget(parent), cardStyle_(cardStyle), assetsMgr_(assets) {
     installImageTextWidgetAccessibilityFactory();
-    setSizePolicy(QSizePolicy::Preferred, QSizePolicy::Preferred);
+    const auto policy = cardStyle_ == CardStyle::Wide ? QSizePolicy::Fixed : QSizePolicy::Preferred;
+    setSizePolicy(policy, policy);
     QString path = from_path(FileSystemOp::resourcesPath() / "cicilogo.png");
     this->defaultImg_ = assetsMgr_->image(path);
 }
@@ -533,7 +540,7 @@ void ImageTextWidget::showDefaultImage() {
 
 QSize ImageTextWidget::sizeHint() const {
     if (cardStyle_ == CardStyle::Wide) {
-        return QSize(160, 140);
+        return QSize(kWideCardWidth, kWideTitleTop + fontMetrics().lineSpacing() * 2 + kWideCardPadding);
     }
 
     QSize imgSZ = imageDisplaySize_;
@@ -552,15 +559,17 @@ QSize ImageTextWidget::sizeHint() const {
 }
 
 QRect ImageTextWidget::favoriteRect() const {
-    return cardStyle_ == CardStyle::Wide ? QRect(width() - 37, 8, 28, 28) : kHeartRC;
+    constexpr int badgeSize = 28;
+    constexpr int inset = kWideCardPadding + 3;
+    return cardStyle_ == CardStyle::Wide ? QRect(kWideCardWidth - inset - badgeSize, inset, badgeSize, badgeSize)
+                                        : kHeartRC;
 }
 
 void ImageTextWidget::drawWideCard(QPainter& painter) {
     constexpr int radius = 6;
     constexpr int padding = 10;
     const QRect frame = rect().adjusted(0, 0, -1, -1);
-    const int labelHeight = fontMetrics().lineSpacing() * 2 + 12;
-    const QRect preview(1, 1, width() - 2, height() - labelHeight - 1);
+    const QRect preview(kWideCardPadding, kWideCardPadding, kWidePreviewSize, kWidePreviewSize);
     painter.setRenderHint(QPainter::Antialiasing);
     painter.setRenderHint(QPainter::SmoothPixmapTransform);
     painter.setPen(Qt::NoPen);
@@ -577,7 +586,7 @@ void ImageTextWidget::drawWideCard(QPainter& painter) {
                             sourceSize.width(), sourceSize.height());
         painter.save();
         QPainterPath clip;
-        clip.addRoundedRect(QRectF(frame).adjusted(1, 1, -1, -1), radius - 1, radius - 1);
+        clip.addRoundedRect(QRectF(preview), radius - 1, radius - 1);
         painter.setClipPath(clip);
         if (!isEnabled()) {
             painter.setOpacity(0.45);
@@ -589,7 +598,7 @@ void ImageTextWidget::drawWideCard(QPainter& painter) {
         drawHeart(&painter, favoriteRect());
     }
 
-    const QRect nameRect = rect().adjusted(padding, preview.bottom() + 1, selected_ ? -30 : -padding, -1);
+    const QRect nameRect = rect().adjusted(padding, kWideTitleTop, selected_ ? -30 : -padding, -kWideCardPadding);
     painter.setPen(palette().color(QPalette::ButtonText));
     if (nameRect.width() > 0) {
         QTextLayout textLayout(text_, font());
