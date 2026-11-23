@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 // See LICENSES/GPL-2.0-or-later.txt for the full license text.
 
+#include <algorithm>
 #include <iterator>
 #include <string_view>
 
@@ -12,11 +13,11 @@
 #include <QTabWidget>
 #include <QSignalBlocker>
 #include <QHBoxLayout>
-#include <QStackedLayout>
 #include <QVBoxLayout>
 
 #include "nlohmann/json.hpp"
 #include "assetsmgr.h"
+#include "categorizedcardgrid.h"
 #include "misc.h"
 #include "commonui.h"
 #include "effectitemwidget.h"
@@ -295,7 +296,7 @@ CameraMovementController::CameraMovementController(GlobalModel* app, QWidget* pa
     }
     loadEffectList();
     
-    this->setLayout(gridMoreLayout_);
+    addScrollBar(gridMoreLayout_);
     
     hideSlider();
 }
@@ -397,7 +398,8 @@ void CameraMovementController::loadEffectList() {
         uint32_t id = item["id"];
         QString name = I18nSupport::localizedName(item);
         QString icon = from_json(item.value("iconpath", nlohmann::json()));
-        auto* w = new EffectItemWidget(app_, this);
+        auto* w = new EffectItemWidget(app_, this, ImageTextWidget::CardStyle::Wide);
+        w->setFavoriteEnabled(false);
         w->setId(id);
         w->setText(name);
         w->setImage(icon);
@@ -561,72 +563,32 @@ void CameraMovementController::restoreFromConfig(EffectItemWidget* newWidget) {
     showSlider();
 }
 
-ShotAtmosphereController::ShotAtmosphereController(GlobalModel *app, QWidget *parent /* = nullptr*/)
-	: QTabWidget(parent), app_(app) {
+ShotAtmosphereController::ShotAtmosphereController(GlobalModel* app, QWidget* parent)
+    : QWidget(parent), app_(app) {
     assert(app_ != nullptr);
-    applyDisabledTabStyle(this);
     app_->registerFilterModelChangeObserver(this);
-    auto* info = currentObsInfo(app_);
-    if (info != nullptr) {
+    if (auto* info = currentObsInfo(app_)) {
         info->registerObserver(this);
     }
-    {
-        auto* favoritesPage = new CiciWidget;
-        favoritesPage->setId(kShotAtmosphereFavoritesTabId);
-        favoritesStack_ = new QStackedLayout;
-        favoritesPage->setLayout(favoritesStack_);
 
-        auto* favoritesGridPage = new CiciWidget;
-        favoritesGridLayout_ = new GridMoreLayout;
-        favoritesGridPage->addScrollBar(favoritesGridLayout_);
-        favoritesStack_->addWidget(favoritesGridPage);
-
-        auto* noFavoritesPage = new QWidget;
-        auto* noFavoritesLayout = new QVBoxLayout;
-        auto* noFavoritesLabel = createLabel(tr("No favorites"));
-        noFavoritesLabel->setAlignment(Qt::AlignCenter);
-        noFavoritesLayout->addStretch();
-        noFavoritesLayout->addWidget(noFavoritesLabel);
-        noFavoritesLayout->addStretch();
-        noFavoritesPage->setLayout(noFavoritesLayout);
-        favoritesStack_->addWidget(noFavoritesPage);
-        favoritesStack_->setCurrentIndex(1);
-
-        this->addTab(favoritesPage, tr("Favorites"));
-    }
-    
+    cardGrid_ = new CategorizedCardGrid(this);
     loadEffectList();
-    QObject::connect(this, &QTabWidget::currentChanged, this, &ShotAtmosphereController::onCurrentChanged);
-    QObject::connect(this, &QTabWidget::tabBarClicked, this, [this](int index) {
-        if (index < 0 || index >= count()) {
-            return;
-        }
-        auto* category = static_cast<CiciWidget*>(widget(index));
-        reportLensCategorySelect(app_,
-                                 category != nullptr ? category->id() : kShotAtmosphereFavoritesTabId,
-                                 to_u8(tabText(index)));
-    });
+    connect(cardGrid_, &CategorizedCardGrid::categoryActivated, this, &ShotAtmosphereController::onCategoryActivated);
+
+    auto* layout = new QVBoxLayout(this);
+    layout->setContentsMargins(0, 0, 0, 0);
+    layout->addWidget(cardGrid_);
 }
 
 ShotAtmosphereController::~ShotAtmosphereController() {
-    auto* info = currentObsInfo(app_);
-    if (info != nullptr) {
+    if (auto* info = currentObsInfo(app_)) {
         info->unregisterObserver(this);
     }
     app_->unregisterFilterModelChangeObserver(this);
 }
 
-void ShotAtmosphereController::onHVModeChanged(ObsInfo::HVMode mode) {
-    for (auto& item : effectItems_) {
-        const auto effectId = item.originalWidget_->id();
-        const auto* effect = app_->effectCatalog()->effectInfo(effectId);
-        assert(effect != nullptr);
-        const bool compatible = effect != nullptr && compatibleAtHVMode(effect->hv_, mode);
-        item.originalWidget_->setVisible(compatible);
-        if (item.favoriteWidget_ != nullptr) {
-            item.favoriteWidget_->setVisible(compatible);
-        }
-    }
+void ShotAtmosphereController::onHVModeChanged(ObsInfo::HVMode) {
+    refreshCategories();
 }
 
 void ShotAtmosphereController::onFilterModelChanged(FilterModel* oldModel, FilterModel* newModel) {
@@ -636,213 +598,93 @@ void ShotAtmosphereController::onFilterModelChanged(FilterModel* oldModel, Filte
     if (newModel != nullptr) {
         newModel->obsInfo()->registerObserver(this);
     }
-
-    auto* info = currentObsInfo(app_);
-    if (info != nullptr) {
-        onHVModeChanged(info->hvMode());
-    }
+    refreshCategories();
 }
 
-void ShotAtmosphereController::onItemClicked(EffectItemWidget* w) {
-    auto* item = effectItem(w->id());
-    assert(item != nullptr);
-    if (item == nullptr) {
-        return;
+void ShotAtmosphereController::onCategoryActivated(const QString& view) {
+    const auto id = view.toUInt();
+    QString title = tr("Favorites");
+    if (id != kShotAtmosphereFavoritesTabId) {
+        const auto category = std::find_if(categories_.begin(), categories_.end(), [id](const auto& entry) {
+            return entry.id_ == id;
+        });
+        assert(category != categories_.end());
+        title = category->title_;
     }
 
-    setSelectedWidget(selectedWidget_ == item->originalWidget_ ? nullptr : item->originalWidget_);
-    if (!loadingConfig_) {
-        emit fieldChanged("selectedEffect", selectedWidget_ != nullptr ? selectedWidget_->id() : 0);
-        reportLensEffectSelect(app_,
-                               u8"shot_atmosphere",
-                               w->id(),
-                               to_u8(w->text()),
-                               selectedWidget_ != nullptr,
-                               currentIndex() == 0 ? u8"favorites" : u8"category");
-    }
+    emit fieldChanged("selectedTab", id);
+    reportLensCategorySelect(app_, id, to_u8(title));
 }
 
-void ShotAtmosphereController::onCurrentChanged(int index) {
-    if (loadingConfig_ || index < 0) {
-        return;
-    }
-
-    auto* current = static_cast<CiciWidget*>(widget(index));
-    assert(current != nullptr);
-    emit fieldChanged("selectedTab",
-                      current != nullptr ? current->id() : kShotAtmosphereFavoritesTabId);
+void ShotAtmosphereController::onItemClicked(EffectItemWidget* card) {
+    const bool selected = selectedWidget_ != card;
+    const bool fromFavorites = cardGrid_->currentCategory().toUInt() == kShotAtmosphereFavoritesTabId;
+    setSelectedWidget(selected ? card : nullptr);
+    emit fieldChanged("selectedEffect", selected ? card->id() : 0);
+    reportLensEffectSelect(app_, u8"shot_atmosphere", card->id(), to_u8(card->text()),
+                           selected, fromFavorites ? u8"favorites" : u8"category");
 }
 
 void ShotAtmosphereController::loadEffectList() {
     const auto& j = app_->effectCatalog()->shotAtmosphereJson();
     assert(!j.is_discarded());
-    
-    const auto& categories = j["categories"];
-    assert(categories.is_array());
-    for (auto i = 0; i < categories.size(); i++) {
-        const auto& category = categories[i];
-        uint32_t id = category["id"];
-        QString name = I18nSupport::localizedName(category);
-        CiciWidget* w = new CiciWidget;
-        w->setId(id);
-        GridMoreLayout* grid = new GridMoreLayout;
-        const auto& arr = category["list"];
-        assert(arr.is_array());
-        for (auto k = 0; k < arr.size(); k++) {
-            const auto& item = arr[k];
-            uint32_t id = item["id"];
-            QString name = I18nSupport::localizedName(item);
-            QString icon = from_json(item.value("iconpath", nlohmann::json()));
-            auto* imgWidget = new EffectItemWidget(app_);
-            imgWidget->setId(id);
-            imgWidget->setText(name);
-            imgWidget->setImage(icon);
-            const auto* effect = app_->effectCatalog()->effectInfo(id);
+
+    for (const auto& entry : j["categories"]) {
+        auto& category = categories_.emplace_back(Category{entry["id"], I18nSupport::localizedName(entry), {}});
+        for (const auto& item : entry["list"]) {
+            auto* card = new EffectItemWidget(app_, cardGrid_, ImageTextWidget::CardStyle::Wide);
+            card->hide();
+            card->setId(item["id"]);
+            card->setText(I18nSupport::localizedName(item));
+            card->setImage(from_json(item.value("iconpath", nlohmann::json())));
+            const auto* effect = app_->effectCatalog()->effectInfo(card->id());
             assert(effect != nullptr);
             if (effect != nullptr) {
-                imgWidget->bindEffect(*effect);
+                card->bindEffect(*effect);
             }
-            grid->addWidget(imgWidget);
-            QObject::connect(imgWidget, &ImageTextWidget::clicked, this, [this, imgWidget]() {
-                onItemClicked(imgWidget);
+            card->setFavorite(app_->settingConfig()->isFavorite(kShotAtmosphereFavoritePage, card->id()));
+            connect(card, &ImageTextWidget::clicked, this, [this, card] {
+                onItemClicked(card);
             });
-            QObject::connect(imgWidget, &ImageTextWidget::liked, this,
-                             [this, imgWidget](bool favorite) {
-                setEffectFavorite(imgWidget->id(), favorite);
+            connect(card, &ImageTextWidget::liked, this, [this, card](bool favorite) {
+                setEffectFavorite(card, favorite);
             });
-            effectItems_.push_back({imgWidget, nullptr, icon});
+            category.cards_.append(card);
         }
-        w->addScrollBar(grid);
-        this->addTab(w, name);
     }
-
-    auto* info = currentObsInfo(app_);
-    if (info != nullptr) {
-        onHVModeChanged(info->hvMode());
-    }
-
-    reloadFavorites();
+    refreshCategories();
 }
 
-void ShotAtmosphereController::setSelectedWidget(EffectItemWidget* w) {
-    if (selectedWidget_ != nullptr) {
-        auto* oldItem = effectItem(selectedWidget_->id());
-        assert(oldItem != nullptr);
-        if (oldItem != nullptr) {
-            oldItem->originalWidget_->setSelected(false);
-            if (oldItem->favoriteWidget_ != nullptr) {
-                oldItem->favoriteWidget_->setSelected(false);
+void ShotAtmosphereController::refreshCategories() {
+    if (cardGrid_ == nullptr) {
+        return;
+    }
+
+    QList<CategorizedCardGrid::Category> views{
+        {QString::number(kShotAtmosphereFavoritesTabId), tr("Favorites"), tr("No favorites"), favoriteCards()},
+    };
+    for (const auto& category : categories_) {
+        QList<QWidget*> cards;
+        for (auto* card : category.cards_) {
+            if (isEffectCompatible(card->id())) {
+                cards.append(card);
             }
         }
+        views.append({QString::number(category.id_), category.title_, {}, std::move(cards)});
     }
-
-    selectedWidget_ = w;
-    if (selectedWidget_ == nullptr) {
-        return;
-    }
-
-    auto* item = effectItem(selectedWidget_->id());
-    assert(item != nullptr);
-    if (item != nullptr) {
-        item->originalWidget_->setSelected(true);
-        if (item->favoriteWidget_ != nullptr) {
-            item->favoriteWidget_->setSelected(true);
-        }
-    }
+    cardGrid_->setCategories(views);
 }
 
-void ShotAtmosphereController::setEffectFavorite(uint32_t effectId, bool favorite) {
-    auto* item = effectItem(effectId);
-    assert(item != nullptr);
-    if (item == nullptr) {
-        return;
-    }
-
-    reportLensFavoriteToggle(app_,
-                             effectId,
-                             to_u8(item->originalWidget_->text()),
-                             favorite);
-
-    if (!app_->settingConfig()->setFavorite(kShotAtmosphereFavoritePage, effectId, favorite)) {
-        const bool current = item->favoriteWidget_ != nullptr;
-        item->originalWidget_->setFavorite(current);
-        if (item->favoriteWidget_ != nullptr) {
-            item->favoriteWidget_->setFavorite(current);
-        }
-        return;
-    }
-
-    applyEffectFavorite(*item, favorite);
-}
-
-void ShotAtmosphereController::applyEffectFavorite(EffectItemViews& item, bool favorite) {
-    item.originalWidget_->setFavorite(favorite);
-    if (favorite == (item.favoriteWidget_ != nullptr)) {
-        if (item.favoriteWidget_ != nullptr) {
-            item.favoriteWidget_->setFavorite(favorite);
-        }
-        return;
-    }
-
-    if (favorite) {
-        auto* widget = new EffectItemWidget(app_);
-        widget->setId(item.originalWidget_->id());
-        widget->setText(item.originalWidget_->text());
-        widget->setImage(item.iconPath_);
-        const auto* effect = app_->effectCatalog()->effectInfo(widget->id());
-        assert(effect != nullptr);
-        if (effect != nullptr) {
-            widget->bindEffect(*effect);
-        }
-        widget->setFavorite(true);
-        widget->setSelected(item.originalWidget_ == selectedWidget_);
-        QObject::connect(widget, &ImageTextWidget::clicked, this,
-                         [this, originalWidget = item.originalWidget_]() {
-            onItemClicked(originalWidget);
-        });
-        QObject::connect(widget, &ImageTextWidget::liked, this,
-                         [this, effectId = widget->id()](bool value) {
-            setEffectFavorite(effectId, value);
-        });
-
-        item.favoriteWidget_ = widget;
-        favoritesGridLayout_->addWidget(widget);
-        widget->setVisible(isEffectCompatible(widget->id()));
-        ++favoriteCount_;
-        favoritesStack_->setCurrentIndex(0);
-        return;
-    }
-
-    auto* widget = item.favoriteWidget_;
-    item.favoriteWidget_ = nullptr;
-    widget->hide();
-    favoritesGridLayout_->removeWidget(widget);
-    widget->deleteLater();
-    --favoriteCount_;
-    assert(favoriteCount_ >= 0);
-    if (favoriteCount_ == 0) {
-        favoritesStack_->setCurrentIndex(1);
-    }
-}
-
-void ShotAtmosphereController::reloadFavorites() {
-    for (auto& item : effectItems_) {
-        applyEffectFavorite(
-            item,
-            app_->settingConfig()->isFavorite(kShotAtmosphereFavoritePage,
-                                               item.originalWidget_->id()));
-    }
-}
-
-ShotAtmosphereController::EffectItemViews*
-ShotAtmosphereController::effectItem(uint32_t effectId) {
-    for (auto& item : effectItems_) {
-        if (item.originalWidget_->id() == effectId) {
-            return &item;
+QList<QWidget*> ShotAtmosphereController::favoriteCards() const {
+    QList<QWidget*> cards;
+    for (const auto& category : categories_) {
+        for (auto* card : category.cards_) {
+            if (card->isFavorate() && isEffectCompatible(card->id())) {
+                cards.append(card);
+            }
         }
     }
-
-    return nullptr;
+    return cards;
 }
 
 bool ShotAtmosphereController::isEffectCompatible(uint32_t effectId) const {
@@ -856,40 +698,55 @@ bool ShotAtmosphereController::isEffectCompatible(uint32_t effectId) const {
     return info == nullptr || compatibleAtHVMode(effect->hv_, info->hvMode());
 }
 
-void ShotAtmosphereController::reset() {
-    setSelectedWidget(nullptr);
-    for (auto& item : effectItems_) {
-        item.originalWidget_->setSelected(false);
-        if (item.favoriteWidget_ != nullptr) {
-            item.favoriteWidget_->setSelected(false);
+void ShotAtmosphereController::setSelectedWidget(EffectItemWidget* card) {
+    if (selectedWidget_ != nullptr) {
+        selectedWidget_->setSelected(false);
+    }
+    selectedWidget_ = card;
+    if (card != nullptr) {
+        card->setSelected(true);
+    }
+}
+
+void ShotAtmosphereController::setEffectFavorite(EffectItemWidget* card, bool favorite) {
+    reportLensFavoriteToggle(app_, card->id(), to_u8(card->text()), favorite);
+    if (!app_->settingConfig()->setFavorite(kShotAtmosphereFavoritePage, card->id(), favorite)) {
+        card->setFavorite(app_->settingConfig()->isFavorite(kShotAtmosphereFavoritePage, card->id()));
+        return;
+    }
+    cardGrid_->setCategoryCards(QString::number(kShotAtmosphereFavoritesTabId), favoriteCards());
+}
+
+void ShotAtmosphereController::reloadFavorites() {
+    for (const auto& category : categories_) {
+        for (auto* card : category.cards_) {
+            card->setFavorite(app_->settingConfig()->isFavorite(kShotAtmosphereFavoritePage, card->id()));
         }
     }
+    cardGrid_->setCategoryCards(QString::number(kShotAtmosphereFavoritesTabId), favoriteCards());
+}
 
-    QSignalBlocker blocker(this);
-    setCurrentIndex(0);
+void ShotAtmosphereController::reset() {
+    setSelectedWidget(nullptr);
+    cardGrid_->setCurrentCategory(QString::number(kShotAtmosphereFavoritesTabId));
 }
 
 void ShotAtmosphereController::json2Me(const nlohmann::json& j) {
-    loadingConfig_ = true;
     reset();
 
     const auto& source = j.is_object() ? j : emptyObject();
+    cardGrid_->setCurrentCategory(QString::number(uintAt(source, u8"selectedTab")));
 
-    uint32_t selectedTab = uintAt(source, u8"selectedTab");
-    for (auto i = 0; i < count(); i++) {
-        CiciWidget* w = static_cast<CiciWidget*>(widget(i));
-        if (selectedTab == w->id()) {
-            setCurrentIndex(i);
-            break;
+    const auto selectedEffect = uintAt(source, u8"selectedEffect");
+    for (const auto& category : categories_) {
+        const auto card = std::find_if(category.cards_.begin(), category.cards_.end(), [selectedEffect](auto* item) {
+            return item->id() == selectedEffect;
+        });
+        if (card != category.cards_.end()) {
+            setSelectedWidget(*card);
+            return;
         }
     }
-    
-    uint32_t selectedEffect = uintAt(source, u8"selectedEffect");
-    auto* selectedItem = effectItem(selectedEffect);
-    if (selectedItem != nullptr) {
-        setSelectedWidget(selectedItem->originalWidget_);
-    }
-    loadingConfig_ = false;
 }
 
 LensEffectsController::LensEffectsController(GlobalModel *app, QWidget *parent /* = nullptr*/)

@@ -5,6 +5,7 @@
 #pragma once
 
 #include <QWidget>
+#include <QList>
 #include <QTabWidget>
 #include <string>
 #include <vector>
@@ -18,7 +19,7 @@
 class QLabel;
 class QSlider;
 class QLineEdit;
-class QStackedLayout;
+class CategorizedCardGrid;
 class QTabWidget;
 class ImageTextWidget;
 class EffectItemWidget;
@@ -109,53 +110,43 @@ private:
     bool loadingConfig_ = false;
 };
 
-class ShotAtmosphereController: public QTabWidget, public IObsEventCallback, public IFilterModelChangeObserver {
+class ShotAtmosphereController: public QWidget, public IObsEventCallback, public IFilterModelChangeObserver {
     Q_OBJECT
-    
+
 public:
-    ShotAtmosphereController(GlobalModel *app, QWidget *parent = nullptr);
+    ShotAtmosphereController(GlobalModel* app, QWidget* parent = nullptr);
     ~ShotAtmosphereController();
-    
-public:
+
     void reset();
     void json2Me(const nlohmann::json& j);
     void reloadFavorites();
 
 signals:
     void fieldChanged(const QString& key, const nlohmann::json& value);
-    
-private:    //IObsEventCallback
-    void onHVModeChanged(ObsInfo::HVMode mode) override;
 
-private:    //IFilterModelChangeObserver
-    void onFilterModelChanged(FilterModel* oldModel, FilterModel* newModel) override;
-    
-private slots:
-    void onCurrentChanged(int);
-    
 private:
-    struct EffectItemViews {
-        EffectItemWidget* originalWidget_ = nullptr;
-        EffectItemWidget* favoriteWidget_ = nullptr;
-        QString iconPath_;
+    void onHVModeChanged(ObsInfo::HVMode mode) override;
+    void onFilterModelChanged(FilterModel* oldModel, FilterModel* newModel) override;
+
+    struct Category {
+        uint32_t id_;
+        QString title_;
+        QList<EffectItemWidget*> cards_;
     };
 
-    void onItemClicked(EffectItemWidget* w);
+    void onCategoryActivated(const QString& view);
+    void onItemClicked(EffectItemWidget* card);
     void loadEffectList();
-    void setSelectedWidget(EffectItemWidget* w);
-    void setEffectFavorite(uint32_t effectId, bool favorite);
-    void applyEffectFavorite(EffectItemViews& item, bool favorite);
-    EffectItemViews* effectItem(uint32_t effectId);
+    void refreshCategories();
+    QList<QWidget*> favoriteCards() const;
     bool isEffectCompatible(uint32_t effectId) const;
-    
-private:
-    QStackedLayout* favoritesStack_ = nullptr;
-    GridMoreLayout* favoritesGridLayout_ = nullptr;
+    void setSelectedWidget(EffectItemWidget* card);
+    void setEffectFavorite(EffectItemWidget* card, bool favorite);
+
+    CategorizedCardGrid* cardGrid_ = nullptr;
     EffectItemWidget* selectedWidget_ = nullptr;
-    std::vector<EffectItemViews> effectItems_;
-    GlobalModel *app_ = nullptr;
-    int favoriteCount_ = 0;
-    bool loadingConfig_ = false;
+    std::vector<Category> categories_;
+    GlobalModel* app_ = nullptr;
 };
 
 class LensEffectsController: public CiciWidget {
