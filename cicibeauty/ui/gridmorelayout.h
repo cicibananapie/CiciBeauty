@@ -40,6 +40,6 @@ private:
     QLayoutItem* troubleMaker_ = nullptr;
     QLayoutItem* selectedItem_ = nullptr;
     bool showTroubleMaker_ = false;
-    int horizontalSpacing_ = 2;
-    int verticalSpacing_ = 2;
+    int horizontalSpacing_ = 12;
+    int verticalSpacing_ = 12;
 };

@@ -93,7 +93,6 @@ int GridMoreLayout::doLayout(const QRect &r, bool testOnly) const {
     QRect rc;
     rc.setX(r.x());
     rc.setY(r.y());
-    int maxW = r.right();
     int maxRowHeight = 0;
     int numOfRow = 0;   //number of items that can be contained in this row
     int y = r.y();
@@ -109,18 +108,19 @@ int GridMoreLayout::doLayout(const QRect &r, bool testOnly) const {
     };
     for (auto i = 0; i < items_.size(); i++) {
         auto item = items_.at(i);
-        if (item == troubleMaker_) {
+        if (item == troubleMaker_ || (item->widget() != nullptr && item->isEmpty())) {
             continue;
         }
         
-        if (rc.x() + item->sizeHint().width() <= maxW
+        const auto size = item->sizeHint();
+        if (rc.x() - r.x() + size.width() <= r.width()
             || numOfRow == 0) {
-            rc.setSize(item->sizeHint());
+            rc.setSize(size);
             if (!testOnly) {
                 item->setGeometry(rc);
             }
             maxRowHeight = (rc.height() > maxRowHeight) ? rc.height() : maxRowHeight;
-            rc.setX(rc.right() + horizontalSpacing_);   //update X
+            rc.setX(rc.x() + size.width() + horizontalSpacing_);
             numOfRow++;
             if (showTroubleMaker_ && selectedItem_ == item) {
                 foundSelected = true;
