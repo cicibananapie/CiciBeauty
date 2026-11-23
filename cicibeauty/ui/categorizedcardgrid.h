@@ -53,5 +53,6 @@ private:
     QGridLayout* grid_;
     QLabel* emptyLabel_;
     QList<Category> categories_;
+    int cardWidth_ = 0;
     int columns_ = 0;
 };

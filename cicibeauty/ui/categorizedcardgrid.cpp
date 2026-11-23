@@ -16,7 +16,6 @@
 
 namespace {
 constexpr int kGridGap = 12;
-constexpr int kThreeColumnWidth = 584;
 }
 
 CategorizedCardGrid::CategorizedCardGrid(QWidget* parent)
@@ -41,6 +40,7 @@ CategorizedCardGrid::CategorizedCardGrid(QWidget* parent)
     auto* content = new QVBoxLayout(page_);
     content->setContentsMargins(0, 0, 0, 0);
     content->addLayout(grid_);
+    content->setAlignment(grid_, Qt::AlignLeft);
     content->addWidget(emptyLabel_);
     content->addStretch();
 
@@ -136,7 +136,10 @@ int CategorizedCardGrid::categoryIndex(const QString& id) const {
 }
 
 int CategorizedCardGrid::columnCount() const {
-    return scrollArea_->viewport()->width() >= kThreeColumnWidth ? 3 : 2;
+    if (cardWidth_ <= 0) {
+        return 1;
+    }
+    return qMax(1, (scrollArea_->viewport()->width() + kGridGap) / (cardWidth_ + kGridGap));
 }
 
 void CategorizedCardGrid::adoptCards(const QList<QWidget*>& cards) {
@@ -161,10 +164,13 @@ void CategorizedCardGrid::refreshGrid() {
         delete item;
     }
 
-    columns_ = columnCount();
-    for (int column = 0; column < 3; ++column) {
-        grid_->setColumnStretch(column, column < columns_ ? 1 : 0);
+    cardWidth_ = 0;
+    for (auto* card : cards) {
+        if (card != nullptr) {
+            cardWidth_ = qMax(cardWidth_, card->sizeHint().width());
+        }
     }
+    columns_ = columnCount();
 
     int count = 0;
     for (auto* card : cards) {
