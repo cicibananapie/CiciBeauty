@@ -96,6 +96,7 @@ QString ActionGroupWidget::name() const {
 
 void ActionGroupWidget::addActions(const nlohmann::json& j) {
     QHBoxLayout* hbox = new QHBoxLayout;
+    hbox->setContentsMargins(0, 0, 0, 0);
     {
         QString name = I18nSupport::localizedName(j);
         QString icon = from_json(j.value("iconpath", nlohmann::json()));
@@ -226,6 +227,7 @@ void CategoryWidget::addActionGroups(const nlohmann::json& category) {
     vbox->addStretch(1);
     //vbox->addItem(createExpandingVerticalSpacer());
     addScrollBar(vbox);
+    layout()->setContentsMargins(0, 0, 0, 0);
 }
 
 ActionGroupWidget* CategoryWidget::actionGroupAt(uint32_t index) const {
@@ -294,6 +296,7 @@ void AIEffectController::createUI() {
         auto* favoritesListPage = new CiciWidget;
         favoritesGroupsLayout_ = new QVBoxLayout;
         favoritesListPage->addScrollBar(favoritesGroupsLayout_);
+        favoritesListPage->layout()->setContentsMargins(0, 0, 0, 0);
         favoritesStack_->addWidget(favoritesListPage);
 
         auto* noFavoritesPage = new QWidget;
@@ -424,6 +427,7 @@ void AIEffectController::loadEffectList() {
 
             auto* rowWidget = new QWidget;
             auto* rowLayout = new QHBoxLayout;
+            rowLayout->setContentsMargins(0, 0, 0, 0);
             auto* groupInfoLayout = new QVBoxLayout;
             auto* groupInfo = new ImageTextWidget(app_->assets());
             groupInfo->setImageDisplaySize(QSize(kActionGroupIconSize, kActionGroupIconSize));

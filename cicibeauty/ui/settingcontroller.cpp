@@ -66,7 +66,7 @@ namespace {
 constexpr const char* kCiciFilterId = "cicbeauty";
 constexpr int kNavigationWidth = 200;
 constexpr int kHeaderLeftMargin = 4;
-constexpr int kSettingPageMinWidth = 640;
+constexpr int kSettingPageMinWidth = 656;
 constexpr int kSettingPageMinHeight = 520;
 
 struct SourceItem {

@@ -105,6 +105,7 @@ StylizedMakeupController::StylizedMakeupController(
     loadEffectList();
     gridMoreLayout_->setTroubleMaker(paramUI_.layout_);
     addScrollBar(gridMoreLayout_);
+    layout()->setContentsMargins(0, 0, 0, 0);
     hideParamUI();
 }
 
@@ -705,6 +706,7 @@ CustomizedMakeupController::CustomizedMakeupController(
     loadEffectList(vbox);
     
     addScrollBar(vbox);
+    layout()->setContentsMargins(0, 0, 0, 0);
 }
 
 CustomizedMakeupController::~CustomizedMakeupController() {
@@ -780,15 +782,14 @@ void MakeupSettingController::createUI() {
                      this, &MakeupSettingController::onCustomizedItemFieldChanged);
     tabWidget_ = new QTabWidget;
     applyDisabledTabStyle(tabWidget_);
+    tabWidget_->setStyleSheet(tabWidget_->styleSheet() + QStringLiteral("QTabWidget::pane { border: none; }"));
     tabWidget_->addTab(stylizedMakeup_, tr("Stylized makeup"));
     tabWidget_->addTab(customizedMakeup_, tr("Customized makeup"));
     
-    QVBoxLayout* vbox = new QVBoxLayout;
+    auto* vbox = new QVBoxLayout(this);
     vbox->addItem(hbox);
     vbox->addItem(hbox1);
-    vbox->addWidget(tabWidget_, 100);
-    
-    addScrollBar(vbox);
+    vbox->addWidget(tabWidget_, 1);
     
     QObject::connect(enableMakeup_, &QCheckBox::stateChanged, this, &MakeupSettingController::onEnableMakeupStateChanged);
     QObject::connect(tabWidget_, &QTabWidget::currentChanged, this, &MakeupSettingController::onCurrentChanged);
