@@ -33,7 +33,7 @@ constexpr int kMarqueeStartDelayMs = 300;
 
 namespace {
 
-constexpr int kWideCardWidth = 160;
+constexpr int kWideCardWidth = 144;
 constexpr int kWideCardPadding = 6;
 constexpr int kWidePreviewSize = kWideCardWidth - kWideCardPadding * 2;
 constexpr int kWideTitleGap = 6;
@@ -566,16 +566,37 @@ QRect ImageTextWidget::favoriteRect() const {
 }
 
 void ImageTextWidget::drawWideCard(QPainter& painter) {
-    constexpr int radius = 6;
-    constexpr int padding = 10;
-    const QRect frame = rect().adjusted(0, 0, -1, -1);
+    constexpr int radius = 8;
+    constexpr int titlePadding = 8;
+    constexpr int checkSize = 20;
+    constexpr int checkGap = 4;
+    const QRectF frame(rect());
     const QRect preview(kWideCardPadding, kWideCardPadding, kWidePreviewSize, kWidePreviewSize);
+    const bool enabled = isEnabled();
+    const bool dark = palette().color(QPalette::Window).lightness() < 128;
+    const bool hovered = enabled && hoverEffectEnabled_ && hovered_ && !selected_;
+    const QColor button = palette().color(QPalette::Button);
+    const QColor surface = dark && enabled ? QColor(hovered ? "#323743" : "#292d36")
+                                           : (hovered ? button.darker(105) : button);
+    const QColor neutralBorder = dark && enabled ? QColor("#353a46") : palette().color(QPalette::Mid);
+    const QColor accent = dark ? QColor("#8babff") : QColor("#2857b8");
+
     painter.setRenderHint(QPainter::Antialiasing);
     painter.setRenderHint(QPainter::SmoothPixmapTransform);
     painter.setPen(Qt::NoPen);
-    painter.setBrush(selected_ && isEnabled() ? palette().color(QPalette::Highlight).darker(185)
-                                              : palette().color(QPalette::Button));
+    painter.setBrush(surface);
     painter.drawRoundedRect(frame, radius, radius);
+
+    if (selected_ && enabled) {
+        painter.save();
+        QPainterPath clip;
+        clip.addRoundedRect(frame, radius, radius);
+        painter.setClipPath(clip);
+        const qreal titleTop = preview.y() + preview.height();
+        painter.fillRect(QRectF(frame.left(), titleTop, frame.width(), frame.bottom() - titleTop),
+                         dark ? QColor("#2b4063") : QColor("#dde8ff"));
+        painter.restore();
+    }
 
     const QPixmap& image = image_.isNull() ? defaultImg_ : image_;
     if (!preview.isEmpty() && !image.isNull()) {
@@ -586,9 +607,9 @@ void ImageTextWidget::drawWideCard(QPainter& painter) {
                             sourceSize.width(), sourceSize.height());
         painter.save();
         QPainterPath clip;
-        clip.addRoundedRect(QRectF(preview), radius - 1, radius - 1);
+        clip.addRoundedRect(QRectF(preview), 6, 6);
         painter.setClipPath(clip);
-        if (!isEnabled()) {
+        if (!enabled) {
             painter.setOpacity(0.45);
         }
         painter.drawPixmap(QRectF(preview), image, source);
@@ -598,8 +619,9 @@ void ImageTextWidget::drawWideCard(QPainter& painter) {
         drawHeart(&painter, favoriteRect());
     }
 
-    const QRect nameRect = rect().adjusted(padding, kWideTitleTop, selected_ ? -30 : -padding, -kWideCardPadding);
-    painter.setPen(palette().color(QPalette::ButtonText));
+    const QRect nameRect = rect().adjusted(titlePadding, kWideTitleTop,
+                                          -(titlePadding + checkSize + checkGap), -kWideCardPadding);
+    painter.setPen(dark && enabled ? QColor("#edf0f6") : palette().color(QPalette::ButtonText));
     if (nameRect.width() > 0) {
         QTextLayout textLayout(text_, font());
         QTextOption option;
@@ -624,13 +646,18 @@ void ImageTextWidget::drawWideCard(QPainter& painter) {
     }
 
     painter.setBrush(Qt::NoBrush);
-    const QColor border = selected_ ? palette().color(QPalette::Highlight) : palette().color(QPalette::Mid);
-    painter.setPen(border);
-    painter.drawRoundedRect(frame, radius, radius);
+    const qreal borderWidth = selected_ && enabled ? 2.0 : 1.0;
+    const qreal inset = borderWidth / 2;
+    painter.setPen(QPen(selected_ && enabled ? accent : neutralBorder, borderWidth));
+    painter.drawRoundedRect(frame.adjusted(inset, inset, -inset, -inset), radius - inset, radius - inset);
     if (selected_) {
-        const QPoint center(width() - 15, nameRect.center().y());
-        painter.setPen(QPen(border, 2, Qt::SolidLine, Qt::RoundCap, Qt::RoundJoin));
-        const QPoint check[] = {center + QPoint(-5, 0), center + QPoint(-1, 4), center + QPoint(6, -4)};
+        const QPointF center(width() - titlePadding - checkSize / 2.0, QRectF(nameRect).center().y());
+        painter.setPen(Qt::NoPen);
+        painter.setBrush(enabled ? accent : neutralBorder);
+        painter.drawEllipse(center, checkSize / 2.0, checkSize / 2.0);
+        const QColor checkColor = enabled ? (dark ? QColor("#162646") : QColor(Qt::white)) : surface;
+        painter.setPen(QPen(checkColor, 2, Qt::SolidLine, Qt::RoundCap, Qt::RoundJoin));
+        const QPointF check[] = {center + QPointF(-5, 0), center + QPointF(-1, 4), center + QPointF(6, -4)};
         painter.drawPolyline(check, 3);
     }
 }
