@@ -66,13 +66,8 @@ BasicLensEffectsController::BasicLensEffectsController(GlobalModel *app, QWidget
     QVBoxLayout* vbox = new QVBoxLayout;
     const QString squareImage = from_path(FileSystemOp::resourcesPath() / u8"square@1x.png");
     {
-        QLabel* label = createLabel(tr("Split screen"));
         faceTracking_ = createCheckBox(tr("Face track"));
-        QHBoxLayout* hbox = new QHBoxLayout;
-        hbox->addWidget(label);
-        hbox->addItem(createExpandingHorizontalSpacer());
-        hbox->addWidget(faceTracking_);
-        vbox->addItem(hbox);
+        vbox->addWidget(faceTracking_);
         
         QObject::connect(faceTracking_, &QCheckBox::stateChanged, this, &BasicLensEffectsController::onFaceTrackStateChanged);
         QObject::connect(faceTracking_, &QCheckBox::clicked, this, [this](bool checked) {
@@ -80,33 +75,36 @@ BasicLensEffectsController::BasicLensEffectsController(GlobalModel *app, QWidget
         });
     }
     {
-        dualScreen_ = new ImageTextWidget(app_->assets());
+        vbox->addWidget(createLabel(tr("Split screen")));
+
+        dualScreen_ = new ImageTextWidget(app_->assets(), this, ImageTextWidget::CardStyle::Wide);
+        dualScreen_->setFavoriteEnabled(false);
         dualScreen_->setText(tr("Dual screen"));
         dualScreen_->setImage(squareImage);
-        tripleScreen_ = new ImageTextWidget(app_->assets());
+        tripleScreen_ = new ImageTextWidget(app_->assets(), this, ImageTextWidget::CardStyle::Wide);
+        tripleScreen_->setFavoriteEnabled(false);
         tripleScreen_->setText(tr("Triple screen"));
         tripleScreen_->setImage(squareImage);
-        QHBoxLayout* hbox = new QHBoxLayout;
-        hbox->addWidget(dualScreen_);
-        hbox->addWidget(tripleScreen_);
-        hbox->addStretch();
-        vbox->addItem(hbox);
+
+        auto* grid = new GridMoreLayout;
+        grid->addWidget(dualScreen_);
+        grid->addWidget(tripleScreen_);
+        vbox->addLayout(grid);
         
         QObject::connect(dualScreen_, &ImageTextWidget::clicked, this, &BasicLensEffectsController::onDualScreenClicked);
         QObject::connect(tripleScreen_, &ImageTextWidget::clicked, this, &BasicLensEffectsController::onTripleScreenClicked);
     }
     {
-        QLabel* label = createLabel(tr("Background blur"));
-        vbox->addWidget(label);
-    }
-    {
-        QHBoxLayout* hbox = new QHBoxLayout;
-        bkBlur_ = new EffectItemWidget(app_);
+        vbox->addWidget(createLabel(tr("Background blur")));
+
+        bkBlur_ = new EffectItemWidget(app_, this, ImageTextWidget::CardStyle::Wide);
+        bkBlur_->setFavoriteEnabled(false);
         bkBlur_->setText(tr("Background blur"));
         bkBlur_->setImage(squareImage);
-        hbox->addWidget(bkBlur_);
-        hbox->addStretch();
-        vbox->addItem(hbox);
+
+        auto* grid = new GridMoreLayout;
+        grid->addWidget(bkBlur_);
+        vbox->addLayout(grid);
         
         QObject::connect(bkBlur_, &ImageTextWidget::clicked, this, &BasicLensEffectsController::onbkBlurClicked);
     }
