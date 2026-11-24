@@ -6,6 +6,7 @@
 
 #include <assert.h>
 
+#include <QEvent>
 #include <QMouseEvent>
 #include <QPainter>
 #include <QPaintEvent>
@@ -40,7 +41,33 @@ void EffectItemWidget::setId(uint32_t id) {
     const QString automationName = QStringLiteral("effectItem_%1").arg(id);
     setObjectName(automationName);
     setAccessibleName(automationName);
+#ifndef OFFICIAL_BUILD
+    updateDebugToolTip();
+#endif
 }
+
+#ifndef OFFICIAL_BUILD
+bool EffectItemWidget::event(QEvent* event) {
+    if (event->type() == QEvent::ToolTipChange) {
+        updateDebugToolTip();
+    }
+    return ImageTextWidget::event(event);
+}
+
+void EffectItemWidget::updateDebugToolTip() {
+    const auto effectId = id();
+    if (effectId == 0 || effectId == static_cast<uint32_t>(-1)) {
+        return;
+    }
+
+    const auto idText = QString::number(effectId);
+    const auto current = toolTip();
+    if (current == idText || current.endsWith(QLatin1Char('\n') + idText)) {
+        return;
+    }
+    QWidget::setToolTip(current.isEmpty() ? idText : current + QLatin1Char('\n') + idText);
+}
+#endif
 
 void EffectItemWidget::bindEffect(const EffectCatalog::EffectInfo& effect) {
     assert(app_ != nullptr);

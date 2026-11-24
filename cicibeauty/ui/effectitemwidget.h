@@ -12,12 +12,14 @@
 #include <QMetaObject>
 #include <QRect>
 
+#include "ciciconfigure.h"
 #include "imagetextwidget.h"
 #include "../effectcatalog.h"
 
 class EffectPackageStatus;
 class GlobalModel;
 enum class EffectPackageState : uint8_t;
+class QEvent;
 class QMouseEvent;
 class QPaintEvent;
 class QPainter;
@@ -34,6 +36,9 @@ public:
     bool packageReady() const;
 
 protected:
+#ifndef OFFICIAL_BUILD
+    bool event(QEvent* event) override;
+#endif
     void mousePressEvent(QMouseEvent* event) override;
     void paintEvent(QPaintEvent* event) override;
     void timerEvent(QTimerEvent* event) override;
@@ -50,6 +55,9 @@ private:
     QRect packageStateRect(int size) const;
     void startDownloadingAnimation();
     void stopDownloadingAnimation();
+#ifndef OFFICIAL_BUILD
+    void updateDebugToolTip();
+#endif
 
 private:
     GlobalModel* app_ = nullptr;
