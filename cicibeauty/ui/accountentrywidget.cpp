@@ -155,6 +155,7 @@ void AccountEntryWidget::setAccount(const QString& avatarUrl, const QString& dis
     avatar_->setAvatarUrl(avatarUrl);
     nameLabel_->setText(displayName_);
     setCursor(Qt::ArrowCursor);
+    updateSubscriptionStatus();
 }
 
 void AccountEntryWidget::clearAccount() {
@@ -164,6 +165,7 @@ void AccountEntryWidget::clearAccount() {
     avatar_->setFallbackText(displayName_);
     nameLabel_->setText(displayName_);
     setCursor(Qt::PointingHandCursor);
+    updateSubscriptionStatus();
 }
 
 int AccountEntryWidget::maximumInteractiveHeight() const {
