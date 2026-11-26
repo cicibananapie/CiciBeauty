@@ -248,6 +248,10 @@ void SettingController::createUI() {
 
     applyFilterBtn_ = createMarqueeButton(tr("Apply Cici"));
     applyFilterBtn_->setObjectName(QStringLiteral("ciciApplyFilterButton"));
+
+    restoreDefaultsBtn_ = createPushButton(tr("Restore Default Settings"));
+    restoreDefaultsBtn_->setObjectName(QStringLiteral("ciciRestoreDefaultsButton"));
+    restoreDefaultsBtn_->setEnabled(false);
     
     const QString headerLinkStyle = QStringLiteral("color: #58C7FF;");
     /*qqService_ = createLabel(tr("QQ Service"));
@@ -279,6 +283,7 @@ void SettingController::createUI() {
     hbox->setAlignment(Qt::AlignVCenter);
     hbox->addWidget(sourceCombo_);
     hbox->addWidget(applyFilterBtn_);
+    hbox->addWidget(restoreDefaultsBtn_);
     hbox->addStretch();
     //hbox->addWidget(qqService_);
     //hbox->addWidget(guide_);
@@ -357,6 +362,8 @@ void SettingController::createUI() {
                      });
     QObject::connect(applyFilterBtn_, &QPushButton::clicked,
                      this, &SettingController::onApplyFilterClicked);
+    QObject::connect(restoreDefaultsBtn_, &QPushButton::clicked,
+                     this, &SettingController::onRestoreDefaultsClicked);
     QObject::connect(feedbackBtn_, &QPushButton::clicked,
                      this, [this]() {
                          reportSupportUiAction(app_, SupportUiAction::FeedbackClick);
@@ -470,6 +477,11 @@ void SettingController::updateAccessOverlayGeometry(bool allowAccountAccess) {
 
     QRegion overlayRegion(accessOverlay_->rect());
     overlayRegion -= QRegion(accountAccessRect.intersected(accessOverlay_->rect()));
+    if (app_->loginLogic()->hasUsableSession()) {
+        const QRect restoreAccessRect(restoreDefaultsBtn_->mapTo(accessOverlay_, QPoint(0, 0)),
+                                      restoreDefaultsBtn_->size());
+        overlayRegion -= QRegion(restoreAccessRect.intersected(accessOverlay_->rect()));
+    }
     accessOverlay_->setMask(overlayRegion);
 }
 
@@ -619,7 +631,7 @@ void SettingController::loadSettingConfig(const std::u8string& sourceUuid) {
     const bool modelReady = model != nullptr && modelSourceUuid == sourceUuid && app_->settingConfig()->isReady();
     updateSettingTabsEnabled(hasFilter && modelReady);
 
-    if (sourceUuid.empty() || !hasFilter) {
+    if (sourceUuid.empty() || !hasFilter || settingsReplacementPending_) {
         return;
     }
     if (!modelReady) {
@@ -893,7 +905,7 @@ void SettingController::refreshSourceCombo() {
     }
 
     sourceCombo_->setCurrentIndex(selected);
-    sourceCombo_->setEnabled(sourceCombo_->count() > 0);
+    sourceCombo_->setEnabled(sourceCombo_->count() > 0 && !settingsReplacementPending_);
     LogInfo << "[SourceSelection] combo refreshed previousUuid=" << previous
             << ", index=" << sourceCombo_->currentIndex()
             << ", name=" << sourceCombo_->currentText()
@@ -931,7 +943,7 @@ void SettingController::refreshApplyFilterButton() {
 
     applyFilterBtn_->setText(applied ? tr("Remove Cici") : tr("Apply Cici"));
     applyFilterBtn_->setMinimumSize(applyFilterBtn_->sizeHint());
-    applyFilterBtn_->setEnabled(true);
+    applyFilterBtn_->setEnabled(!settingsReplacementPending_);
 }
 
 bool SettingController::isSettingTabEnabled(int row) const {
@@ -944,6 +956,8 @@ bool SettingController::isSettingTabEnabled(int row) const {
 }
 
 void SettingController::updateSettingTabsEnabled(bool hasFilter) {
+    hasFilter = hasFilter && !settingsReplacementPending_;
+    restoreDefaultsBtn_->setEnabled(hasFilter && app_->loginLogic()->hasUsableSession());
     QSignalBlocker blocker(tabBar_);
     for (int row = 0; row < tabBar_->count(); ++row) {
         auto* item = tabBar_->item(row);
@@ -996,6 +1010,54 @@ void SettingController::onApplyFilterClicked() {
         app_->removeCiciFilterFromSource(uuid, u8"user_click");
     } else {
         app_->applyCiciFilterToSource(uuid, u8"user_click");
+    }
+}
+
+void SettingController::setSettingsReplacementPending(bool pending) {
+    settingsReplacementPending_ = pending;
+    sourceCombo_->setEnabled(sourceCombo_->count() > 0 && !pending);
+    refreshApplyFilterButton();
+    if (pending) {
+        updateSettingTabsEnabled(false);
+    } else {
+        loadSettingConfig(selectedSourceUuid());
+    }
+}
+
+void SettingController::onRestoreDefaultsClicked() {
+    if (!restoreDefaultsBtn_->isEnabled()) {
+        return;
+    }
+    const auto target = activeSettingTarget();
+    const auto uid = app_->loginLogic()->uid();
+    QPointer<SettingController> owner(this);
+    QMessageBox confirmation(QMessageBox::Question, tr("Restore Default Settings"),
+        tr("Restore default settings for \"%1\"?\n\nAll CiciBeauty parameters and custom presets for this source will be reset. Favorites and other sources will not be affected.")
+            .arg(sourceCombo_->currentText()),
+        QMessageBox::Cancel, this);
+    auto* restore = confirmation.addButton(tr("Restore Defaults"), QMessageBox::AcceptRole);
+    confirmation.setDefaultButton(QMessageBox::Cancel);
+    confirmation.exec();
+    if (!owner || confirmation.clickedButton() != restore || !restoreDefaultsBtn_->isEnabled() ||
+        !isActiveSettingTarget(target) || app_->loginLogic()->uid() != uid) {
+        return;
+    }
+
+    auto config = app_->settingConfig()->defaultConfig();
+    config["selected"] = tabBar_->currentRow();
+    setSettingsReplacementPending(true);
+    auto complete = [owner, target](bool success) {
+        if (!owner) {
+            return;
+        }
+        owner->setSettingsReplacementPending(false);
+        if (!success && owner->isActiveSettingTarget(target)) {
+            QMessageBox::warning(owner, tr("Restore Default Settings"),
+                                 tr("Failed to restore default settings."));
+        }
+    };
+    if (!app_->settingConfig()->setConfig(target.sourceUuid, config, complete)) {
+        complete(false);
     }
 }
 
@@ -1225,7 +1287,7 @@ void SettingController::importActiveSettingConfig(
     nlohmann::json config,
     const nlohmann::json& favorites,
     std::function<void(bool)> complete) {
-    if (!isActiveSettingTarget(target) || app_->filterModel() == nullptr) {
+    if (!isActiveSettingTarget(target) || app_->filterModel() == nullptr || settingsReplacementPending_) {
         complete(false);
         return;
     }
@@ -1233,26 +1295,27 @@ void SettingController::importActiveSettingConfig(
     auto* settingConfig = app_->settingConfig();
     config["version"] = 1;
     config["selected"] = tabBar_->currentRow();
-    // Submit in order without waiting, so later user edits follow this replacement.
-    // The import succeeds only after both backend acknowledgments.
+    setSettingsReplacementPending(true);
+    // Keep editing disabled until both backend replacements are acknowledged.
     struct ImportResult {
         int remaining = 2;
         bool success = true;
     };
     auto result = std::make_shared<ImportResult>();
-    auto acknowledged = [result, complete = std::move(complete)](bool success) {
+    auto acknowledged = [result, owner = QPointer<SettingController>(this),
+                         complete = std::move(complete)](bool success) {
         result->success = result->success && success;
         if (--result->remaining == 0) {
+            if (owner) {
+                owner->setSettingsReplacementPending(false);
+            }
             complete(result->success);
         }
     };
     if (!settingConfig->replaceFavorites(favorites, acknowledged)) {
         acknowledged(false);
     }
-    if (settingConfig->setConfig(target.sourceUuid, config, acknowledged)) {
-        json2Me(config);
-        reloadFavoriteViews();
-    } else {
+    if (!settingConfig->setConfig(target.sourceUuid, config, acknowledged)) {
         acknowledged(false);
     }
 }

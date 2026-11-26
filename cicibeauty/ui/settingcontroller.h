@@ -86,6 +86,7 @@ private:
     void resetState(bool resetChildren);
     void refreshSourceCombo();
     void refreshApplyFilterButton();
+    void setSettingsReplacementPending(bool pending);
     bool isSettingTabEnabled(int row) const;
     void updateSettingTabsEnabled(bool hasFilter);
     std::u8string selectedSourceUuid() const;
@@ -107,6 +108,7 @@ private:
 private slots:
     void onSourceComboCurrentIndexChanged(int index);
     void onApplyFilterClicked();
+    void onRestoreDefaultsClicked();
     void onObsSourceListChanged();
     void onTabCurrentRowChanged(int row);
     void onLoginSuccess();
@@ -131,6 +133,7 @@ private:
     QPointer<FeedbackDialog> feedbackDialog_;
     QComboBox* sourceCombo_ = nullptr;
     QPushButton* applyFilterBtn_ = nullptr;
+    QPushButton* restoreDefaultsBtn_ = nullptr;
     QPushButton* feedbackBtn_ = nullptr;
     //QLabel* qqService_ = nullptr;
     //QLabel* guide_ = nullptr;
@@ -139,5 +142,6 @@ private:
     signal_handler_t* obsSignalHandler_ = nullptr;
     GlobalModel *app_ = nullptr;
     bool effectActivationPending_ = false;
+    bool settingsReplacementPending_ = false;
     bool uiCreated_ = false;
 };

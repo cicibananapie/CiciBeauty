@@ -1311,6 +1311,26 @@ Qt: %4</translation>
 <context>
     <name>SettingController</name>
     <message>
+        <source>Restore Default Settings</source>
+        <translation>Restore Default Settings</translation>
+    </message>
+    <message>
+        <source>Restore Defaults</source>
+        <translation>Restore Defaults</translation>
+    </message>
+    <message>
+        <source>Restore default settings for "%1"?
+
+All CiciBeauty parameters and custom presets for this source will be reset. Favorites and other sources will not be affected.</source>
+        <translation>Restore default settings for "%1"?
+
+All CiciBeauty parameters and custom presets for this source will be reset. Favorites and other sources will not be affected.</translation>
+    </message>
+    <message>
+        <source>Failed to restore default settings.</source>
+        <translation>Failed to restore default settings.</translation>
+    </message>
+    <message>
         <location filename="../settingcontroller.cpp" line="575"/>
         <source>Effect Conflict</source>
         <translation>Effect Conflict</translation>

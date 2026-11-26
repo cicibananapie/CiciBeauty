@@ -1311,6 +1311,26 @@ Qt：%4</translation>
 <context>
     <name>SettingController</name>
     <message>
+        <source>Restore Default Settings</source>
+        <translation>恢复默认设置</translation>
+    </message>
+    <message>
+        <source>Restore Defaults</source>
+        <translation>恢复默认</translation>
+    </message>
+    <message>
+        <source>Restore default settings for "%1"?
+
+All CiciBeauty parameters and custom presets for this source will be reset. Favorites and other sources will not be affected.</source>
+        <translation>恢复“%1”的默认设置？
+
+该视频源的所有 CiciBeauty 参数和自定义方案将恢复为默认值。收藏和其他视频源的设置不受影响。</translation>
+    </message>
+    <message>
+        <source>Failed to restore default settings.</source>
+        <translation>恢复默认设置失败。</translation>
+    </message>
+    <message>
         <location filename="../settingcontroller.cpp" line="575"/>
         <source>Effect Conflict</source>
         <translation>特效冲突</translation>
