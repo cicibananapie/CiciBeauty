@@ -787,8 +787,8 @@ void MakeupSettingController::createUI() {
     tabWidget_->addTab(customizedMakeup_, tr("Customized makeup"));
     
     auto* vbox = new QVBoxLayout(this);
-    vbox->addItem(hbox);
-    vbox->addItem(hbox1);
+    vbox->addLayout(hbox);
+    vbox->addLayout(hbox1);
     vbox->addWidget(tabWidget_, 1);
     
     QObject::connect(enableMakeup_, &QCheckBox::stateChanged, this, &MakeupSettingController::onEnableMakeupStateChanged);

@@ -109,8 +109,8 @@ void FilterSettingController::createUI() {
     loadEffectList();
     
     QVBoxLayout* vbox = new QVBoxLayout(this);
-    vbox->addItem(titleHbox);
-    vbox->addItem(hbox1);
+    vbox->addLayout(titleHbox);
+    vbox->addLayout(hbox1);
     vbox->addLayout(current);
     vbox->addWidget(strengthRow_);
     vbox->addWidget(effectGrid_, 1);
@@ -220,9 +220,7 @@ void FilterSettingController::onCategoryActivated(const QString& id) {
 
 void FilterSettingController::refreshEnableState() {
     bool enableFilter = (enableFilter_->checkState() == Qt::Checked) ? true : false;
-    for (const auto& item : effectItems_) {
-        item.widget_->setEnabled(enableFilter);
-    }
+    effectGrid_->setEnabled(enableFilter);
     refreshParamEnabledState();
 }
 
