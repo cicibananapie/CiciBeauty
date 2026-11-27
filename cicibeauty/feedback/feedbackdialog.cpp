@@ -77,8 +77,12 @@ FeedbackDialog::FeedbackDialog(GlobalModel* app, const QString& email, QWidget* 
     layout->addWidget(counter_);
 
     auto* form = new QFormLayout;
+    form->setFieldGrowthPolicy(QFormLayout::AllNonFixedFieldsGrow);
     email_ = new QLineEdit(email, this);
     email_->setObjectName("feedbackEmail");
+    email_->setAlignment(Qt::AlignLeft | Qt::AlignVCenter);
+    email_->setMinimumWidth(400);
+    email_->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
     email_->setMaxLength(254);
     email_->setPlaceholderText(tr("Optional"));
     form->addRow(tr("Email"), email_);
