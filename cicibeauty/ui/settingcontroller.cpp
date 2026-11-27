@@ -331,7 +331,7 @@ void SettingController::createUI() {
     addLazyPage(tr("Beauty Enhancement"));
     addLazyPage(tr("Makeup Setting"));
     addLazyPage(tr("Body Shaping"));
-    addLazyPage(tr("AI Effect"));
+    addLazyPage(tr("AI Effect (Coming soon)"));
     addLazyPage(tr("Effect Asset"));
     addLazyPage(tr("Keying Setting"));
     addLazyPage(tr("Lens Effect"));
