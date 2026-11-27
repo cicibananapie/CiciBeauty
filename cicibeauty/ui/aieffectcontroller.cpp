@@ -267,7 +267,6 @@ AIEffectController::AIEffectController(GlobalModel* app, QWidget* parent/* = nul
 
 void AIEffectController::createUI() {
     QVBoxLayout *vbox = new QVBoxLayout;
-    vbox->setContentsMargins(0, 0, 0, 0);
     {
         QHBoxLayout* hbox = new QHBoxLayout;
         QLabel* cameraLabel = createLabel(tr("Camera:"));
@@ -332,26 +331,7 @@ void AIEffectController::createUI() {
                                              to_u8(tabWidget_->tabText(index)));
         });
     }
-    auto* content = new QWidget;
-    content->setLayout(vbox);
-    content->setEnabled(false);
-
-    auto* notice = new QLabel(tr("Gesture effects are coming soon and are not available in this version."));
-    notice->setAlignment(Qt::AlignCenter);
-    notice->setWordWrap(true);
-    notice->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
-    notice->setStyleSheet(QStringLiteral(
-        "color: #F3D38A;"
-        "background-color: #332D1F;"
-        "border: 1px solid #6B5830;"
-        "border-radius: 4px;"
-        "font-weight: 500;"
-        "padding: 8px;"));
-
-    auto* pageLayout = new QVBoxLayout;
-    pageLayout->addWidget(notice);
-    pageLayout->addWidget(content, 1);
-    this->setLayout(pageLayout);
+    this->setLayout(vbox);
 }
 
 AIEffectController::~AIEffectController() {

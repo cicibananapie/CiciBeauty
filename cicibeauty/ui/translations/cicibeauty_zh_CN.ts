@@ -34,10 +34,6 @@ See LICENSES/GPL-2.0-or-later.txt for the full license text.
         <source>Favorites</source>
         <translation>收藏</translation>
     </message>
-    <message>
-        <source>Gesture effects are coming soon and are not available in this version.</source>
-        <translation>手势特效即将推出，当前版本暂不可用。</translation>
-    </message>
 </context>
 <context>
     <name>AccountEntryWidget</name>
@@ -1390,8 +1386,8 @@ All CiciBeauty parameters and custom presets for this source will be reset. Favo
     </message>
     <message>
         <location filename="../settingcontroller.cpp" line="329"/>
-        <source>AI Effect (Coming soon)</source>
-        <translation>AI 特效（即将推出）</translation>
+        <source>AI Effect</source>
+        <translation>AI 特效</translation>
     </message>
     <message>
         <location filename="../settingcontroller.cpp" line="266"/>
