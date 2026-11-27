@@ -5,3 +5,4 @@
 #pragma once
 
 void logObsCallbackThread(const char* callbackName);
+void stopObsCallbackThreadLogging();

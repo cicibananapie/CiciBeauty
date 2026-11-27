@@ -691,7 +691,7 @@ void CiciBeautyApp::onHide(void *data) {
 }
 
 obs_source_frame* CiciBeautyApp::onFilterVideo(void* data, obs_source_frame* frame) {
-    logObsCallbackThread("CiciBeautyApp2::onFilterVideo");
+    //logObsCallbackThread("CiciBeautyApp2::onFilterVideo");
     auto* instance = reinterpret_cast<CiciBeautyFilterInstance*>(data);
     return instance->onFilterVideo(frame);
 }
@@ -844,6 +844,8 @@ void CiciBeautyApp::startGlobalServices() {
 }
 
 void CiciBeautyApp::stopGlobalServices() {
+    stopObsCallbackThreadLogging();
+
     if (!globalStarted_) {
         return;
     }
@@ -1270,7 +1272,9 @@ void CiciBeautyApp::onFrontendEventCallback(enum obs_frontend_event event, void*
 }
 
 void CiciBeautyApp::onFrontendEvent(enum obs_frontend_event event) {
-    if (event == OBS_FRONTEND_EVENT_FINISHED_LOADING) {
+    if (event == OBS_FRONTEND_EVENT_SCRIPTING_SHUTDOWN) {
+        stopObsCallbackThreadLogging();
+    } else if (event == OBS_FRONTEND_EVENT_FINISHED_LOADING) {
         addToolMenuItem();
         ensureContextBarEntryAttached();
         ensureSourceListCiciStatusAttached();

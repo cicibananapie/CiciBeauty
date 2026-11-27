@@ -16,14 +16,17 @@
 
 namespace {
 
-std::mutex& callbackThreadMutex() {
-    static std::mutex mutex;
-    return mutex;
-}
+struct CallbackThreadLoggerState {
+    std::mutex mutex;
+    std::unordered_map<std::string, std::thread::id> threads;
+    bool stopped = false;
+};
 
-std::unordered_map<std::string, std::thread::id>& callbackThreads() {
-    static std::unordered_map<std::string, std::thread::id> threads;
-    return threads;
+CallbackThreadLoggerState& callbackThreadLoggerState() {
+    // OBS can deliver teardown callbacks during static destruction.
+    // Keep both the lock and its protected data alive until process exit.
+    static auto* state = new CallbackThreadLoggerState;
+    return *state;
 }
 
 const void* threadPtr(QThread* thread) {
@@ -32,7 +35,20 @@ const void* threadPtr(QThread* thread) {
 
 }  // namespace
 
+void stopObsCallbackThreadLogging() {
+    auto& state = callbackThreadLoggerState();
+    std::lock_guard<std::mutex> lock(state.mutex);
+    state.stopped = true;
+}
+
 void logObsCallbackThread(const char* callbackName) {
+    auto& state = callbackThreadLoggerState();
+    // Serialize shutdown with the entire diagnostic, including Qt access and logging.
+    std::lock_guard<std::mutex> lock(state.mutex);
+    if (state.stopped) {
+        return;
+    }
+
     const std::string name = callbackName != nullptr ? callbackName : "(null)";
     const auto currentThread = std::this_thread::get_id();
 
@@ -40,18 +56,14 @@ void logObsCallbackThread(const char* callbackName) {
     bool firstSeen = false;
     bool changed = false;
 
-    {
-        std::lock_guard<std::mutex> lock(callbackThreadMutex());
-        auto& threads = callbackThreads();
-        auto it = threads.find(name);
-        if (it == threads.end()) {
-            threads.emplace(name, currentThread);
-            firstSeen = true;
-        } else if (it->second != currentThread) {
-            previousThread = it->second;
-            it->second = currentThread;
-            changed = true;
-        }
+    auto it = state.threads.find(name);
+    if (it == state.threads.end()) {
+        state.threads.emplace(name, currentThread);
+        firstSeen = true;
+    } else if (it->second != currentThread) {
+        previousThread = it->second;
+        it->second = currentThread;
+        changed = true;
     }
 
     if (!firstSeen && !changed) {
