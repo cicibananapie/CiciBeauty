@@ -5,12 +5,17 @@
   "artifacts": {
     "runtime": {
       "provider": "github_release",
-      "repository": "",
-      "tag": "",
-      "asset": "",
-      "sha256": "",
+      "repository": "cicibananapie/CiciBeauty",
+      "tag": "runtime-macos-1.1.0",
+      "asset": "cici-runtime-macos-1.1.0.tar.gz",
+      "sha256": "24970873d2264adaa666d152695370a835e1a2d3f4b666d76353f9eb5f505010",
       "archive": "tar.gz",
-      "install": [{"source": "runtime", "destination": "runtime"}]
+      "install": [
+        {
+          "source": "runtime",
+          "destination": "runtime"
+        }
+      ]
     }
   }
 }
