@@ -19,6 +19,7 @@
 #include <QVBoxLayout>
 #include <QTabWidget>
 #include <QStackedWidget>
+#include <QScrollArea>
 #include <QInputDialog>
 #include <QSignalBlocker>
 
@@ -904,12 +905,18 @@ void BodyShapingSettingController::createUI() {
     tabWidget_->addTab(newSlnWidget_, tr("+ New Sln"));
     refreshSolutionTabCloseButtons();
     
+    auto* scrollArea = new QScrollArea;
+    scrollArea->setWidgetResizable(true);
+    scrollArea->setFrameShape(QFrame::NoFrame);
+    scrollArea->setWidget(tabWidget_);
+    scrollArea->viewport()->setAutoFillBackground(false);
+    tabWidget_->setAutoFillBackground(false);
+
     QVBoxLayout* vbox = new QVBoxLayout;
     vbox->addItem(hbox);
     vbox->addItem(hbox1);
-    vbox->addWidget(tabWidget_);
-    
-    addScrollBar(vbox);
+    vbox->addWidget(scrollArea, 1);
+    setLayout(vbox);
     
     QObject::connect(enableBodyShaping_, &QCheckBox::stateChanged, this, &BodyShapingSettingController::onEnableMakeupStateChanged);
     QObject::connect(enableBodyShaping_, &QCheckBox::clicked, this, [this](bool checked) {

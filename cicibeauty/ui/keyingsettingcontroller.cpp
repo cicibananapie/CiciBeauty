@@ -19,6 +19,7 @@
 #include <QMessageBox>
 #include <QTabWidget>
 #include <QStackedWidget>
+#include <QScrollArea>
 #include <QHBoxLayout>
 #include <QVBoxLayout>
 #include <QPointer>
@@ -1350,9 +1351,15 @@ void KeyingSettingController::createUI() {
     stackedWidget_->addWidget(gsKeyingTab_);
     stackedWidget_->addWidget(nsSegTab);
     
-    vbox->addWidget(stackedWidget_, 100);
-    
-    addScrollBar(vbox);
+    auto* scrollArea = new QScrollArea;
+    scrollArea->setWidgetResizable(true);
+    scrollArea->setFrameShape(QFrame::NoFrame);
+    scrollArea->setWidget(stackedWidget_);
+    scrollArea->viewport()->setAutoFillBackground(false);
+    stackedWidget_->setAutoFillBackground(false);
+
+    vbox->addWidget(scrollArea, 1);
+    setLayout(vbox);
 }
 
 KeyingSettingController::~KeyingSettingController() {

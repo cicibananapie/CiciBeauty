@@ -597,12 +597,16 @@ void BeautyEnhancementController::createUI() {
     hbox->addWidget(camera);
     hbox->addWidget(cameraName);
     hbox->addStretch();
-    hbox->addWidget(enableBeautyCheckBox_);
+
+    QHBoxLayout* enableRow = new QHBoxLayout;
+    enableRow->addWidget(enableBeautyCheckBox_);
+    enableRow->addStretch();
     
     tabWidget_ = new QTabWidget;
     applyDisabledTabStyle(tabWidget_);
     QVBoxLayout* vbox = new QVBoxLayout;
     vbox->addItem(hbox);
+    vbox->addLayout(enableRow);
     vbox->addWidget(tabWidget_, 1);
     setLayout(vbox);
     
