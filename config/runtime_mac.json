@@ -8,7 +8,7 @@
       "repository": "cicibananapie/CiciBeauty",
       "tag": "runtime-macos-1.1.0",
       "asset": "cici-runtime-macos-1.1.0.tar.gz",
-      "sha256": "24970873d2264adaa666d152695370a835e1a2d3f4b666d76353f9eb5f505010",
+      "sha256": "1275a2dff3779fb8ac9e36c8bf7a9af8056f97f14732785c8868980aea8f6a82",
       "archive": "tar.gz",
       "install": [
         {
