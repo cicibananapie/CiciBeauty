@@ -189,6 +189,19 @@ void ImageTextWidget::setImageDisplaySize(const QSize& size) {
     update();
 }
 
+void ImageTextWidget::setWordWrap(bool enabled) {
+    if (wordWrap_ == enabled) {
+        return;
+    }
+    wordWrap_ = enabled;
+    auto policy = sizePolicy();
+    policy.setHeightForWidth(hasHeightForWidth());
+    setSizePolicy(policy);
+    resetMarqueeState();
+    updateGeometry();
+    update();
+}
+
 void ImageTextWidget::setSelected(bool b) {
     if (selected_ == b) {
         return;
@@ -346,6 +359,10 @@ void ImageTextWidget::drawCompactCard(QPainter& painter) {
     // 1. Define the drawing area.
     int margin = kDefaultMargin;
     QRect imgRect(margin, margin, width() - 2 * margin, height() - textRC_.height() - 2*margin);
+    if (wordWrap_) {
+        const QSize imageSize = imageDisplaySize_.isValid() ? imageDisplaySize_ : img->size();
+        imgRect = QRect((width() - imageSize.width()) / 2, margin, imageSize.width(), imageSize.height());
+    }
     int radius = kDefaultRadius;
 
     // 2. Draw the rounded background with a shadow (simple version: draw a rounded rectangle directly).
@@ -359,7 +376,9 @@ void ImageTextWidget::drawCompactCard(QPainter& painter) {
         painter.setPen(Qt::NoPen);
     }
     painter.setBrush(enabled ? QColor(Qt::white) : palette().color(QPalette::Disabled, QPalette::Window));
-    painter.drawRoundedRect(rect().adjusted(2,2,-2,-2-textRC_.height()), radius, radius);
+    const QRect backgroundRect = wordWrap_ ? imgRect.adjusted(-2, -2, 2, 2)
+                                          : rect().adjusted(2, 2, -2, -2-textRC_.height());
+    painter.drawRoundedRect(backgroundRect, radius, radius);
 
     // 3. Draw the image with rounded clipping.
     QPainterPath path;
@@ -432,6 +451,12 @@ void ImageTextWidget::updateTextMetrics() {
 }
 
 QRect ImageTextWidget::textRect() const {
+    if (hasHeightForWidth()) {
+        const QSize imageSize = imageDisplaySize_.isValid() ? imageDisplaySize_
+            : (image_.isNull() ? defaultImg_.size() : image_.size());
+        const int top = imageSize.height() + 2 * kDefaultMargin;
+        return QRect(kDefaultMargin, top, width() - 2 * kDefaultMargin, qMax(0, height() - top));
+    }
     return QRect(0, height() - textRC_.height(), width(), textRC_.height());
 }
 
@@ -460,7 +485,7 @@ int ImageTextWidget::marqueeOffset(int width) const {
 
 bool ImageTextWidget::shouldMarqueeText() const {
     const QRect rect = textRect();
-    return cardStyle_ == CardStyle::Compact && isEnabled()
+    return cardStyle_ == CardStyle::Compact && !wordWrap_ && isEnabled()
            && hovered_
            && hoverEffectEnabled_
            && !text_.isEmpty()
@@ -491,7 +516,9 @@ void ImageTextWidget::drawDisplayText(QPainter *painter, const QRect& rect) cons
     painter->save();
     painter->setClipRect(rect);
     painter->setPen(isEnabled() ? QColor("#fff8e1") : palette().color(QPalette::Disabled, QPalette::Text));
-    if (shouldMarqueeText()) {
+    if (hasHeightForWidth()) {
+        painter->drawText(rect, Qt::AlignHCenter | Qt::AlignTop | Qt::TextWordWrap, text_);
+    } else if (shouldMarqueeText()) {
         drawMarqueeText(painter, rect, width);
     } else {
         const QString text = metrics.elidedText(text_, Qt::ElideRight, rect.width());
@@ -555,7 +582,26 @@ QSize ImageTextWidget::sizeHint() const {
     QSize sz;
     sz.setWidth(imgSZ.width() + 8);
     sz.setHeight(imgSZ.height() + textRC_.height() + 8);
+    if (hasHeightForWidth()) {
+        sz.setWidth(qBound(minimumWidth(), sz.width(), maximumWidth()));
+        sz.setHeight(heightForWidth(sz.width()));
+    }
     return sz;
+}
+
+bool ImageTextWidget::hasHeightForWidth() const {
+    return cardStyle_ == CardStyle::Compact && wordWrap_;
+}
+
+int ImageTextWidget::heightForWidth(int width) const {
+    if (!hasHeightForWidth()) {
+        return -1;
+    }
+    const QSize imageSize = imageDisplaySize_.isValid() ? imageDisplaySize_
+        : (image_.isNull() ? defaultImg_.size() : image_.size());
+    const QRect bounds(0, 0, qMax(1, width - 2 * static_cast<int>(kDefaultMargin)), QWIDGETSIZE_MAX);
+    const int textHeight = fontMetrics().boundingRect(bounds, Qt::TextWordWrap, text_).height();
+    return imageSize.height() + 2 * kDefaultMargin + textHeight;
 }
 
 QRect ImageTextWidget::favoriteRect() const {

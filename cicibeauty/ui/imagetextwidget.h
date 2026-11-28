@@ -42,6 +42,7 @@ public:
     bool isClickableEnabled() const { return clickableEnabled_; }
     void activate();
     void setImageDisplaySize(const QSize& size);
+    void setWordWrap(bool enabled);
     
 signals:
     void clicked();
@@ -49,6 +50,8 @@ signals:
     
 public:
     QSize sizeHint() const override;
+    bool hasHeightForWidth() const override;
+    int heightForWidth(int width) const override;
     
 protected:
     void resizeEvent(QResizeEvent *event) override;
@@ -93,6 +96,7 @@ private:
     bool hoverEffectEnabled_ = true;
     bool favoriteEnabled_ = true;
     bool clickableEnabled_ = true;
+    bool wordWrap_ = false;
     const CardStyle cardStyle_;
     AssetsMgr* assetsMgr_ = nullptr;
     QPointer<RemoteImageStatus> remoteImageStatus_;

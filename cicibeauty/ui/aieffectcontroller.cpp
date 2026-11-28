@@ -33,6 +33,7 @@ namespace {
 constexpr uint32_t kFavoriteCategoryId = 0;
 constexpr std::u8string_view kFavoritePage = u8"aiEffects";
 constexpr int kActionGroupIconSize = 64;
+constexpr int kActionGroupWidth = 112;
 
 std::u8string aiActionSelectedPath(uint32_t categoryId, uint32_t actionGroupId) {
     return std::u8string(u8"/aiEffects/selections/") + to_u8(categoryId) + u8"/" + to_u8(actionGroupId);
@@ -103,6 +104,8 @@ void ActionGroupWidget::addActions(const nlohmann::json& j) {
         QVBoxLayout* vbox = new QVBoxLayout;
         actionType_ = new ImageTextWidget(app_->assets());
         actionType_->setImageDisplaySize(QSize(kActionGroupIconSize, kActionGroupIconSize));
+        actionType_->setFixedWidth(kActionGroupWidth);
+        actionType_->setWordWrap(true);
         actionType_->setText(name);
         actionType_->setImage(icon);
         actionType_->setFavoriteEnabled(false);
@@ -431,6 +434,8 @@ void AIEffectController::loadEffectList() {
             auto* groupInfoLayout = new QVBoxLayout;
             auto* groupInfo = new ImageTextWidget(app_->assets());
             groupInfo->setImageDisplaySize(QSize(kActionGroupIconSize, kActionGroupIconSize));
+            groupInfo->setFixedWidth(kActionGroupWidth);
+            groupInfo->setWordWrap(true);
             groupInfo->setId(actionGroup["id"]);
             groupInfo->setText(I18nSupport::localizedName(actionGroup));
             groupInfo->setImage(from_json(actionGroup.value("iconpath", nlohmann::json())));
