@@ -5,12 +5,46 @@
 #include "effectcatalog.h"
 #include "modelapp.h"
 
+#include <algorithm>
 #include <limits>
 #include <utility>
 
 #include "log.h"
 #include "lumaclient.h"
 #include "protocol/catalog.h"
+
+namespace {
+
+// Temporarily unavailable; restore these entries after their AI dependencies are fixed.
+bool isTemporarilyHiddenEffect(uint64_t id) {
+    return id == 1300024 || id == 1470025;
+}
+
+void removeTemporarilyHiddenEffects(nlohmann::json& value) {
+    if (value.is_array()) {
+        std::erase_if(value.get_ref<nlohmann::json::array_t&>(), [](const auto& item) {
+            const auto id = item.find("id");
+            return id != item.end() && id->is_number_unsigned() &&
+                   isTemporarilyHiddenEffect(id->template get<uint64_t>());
+        });
+    }
+    if (value.is_object() || value.is_array()) {
+        for (auto& item : value) {
+            removeTemporarilyHiddenEffects(item);
+        }
+    }
+    if (value.is_object() && value.contains("actionGroups")) {
+        auto& groups = value["actionGroups"];
+        if (groups.is_array()) {
+            std::erase_if(groups.get_ref<nlohmann::json::array_t&>(), [](const auto& group) {
+                const auto actions = group.find("actions");
+                return actions != group.end() && actions->is_array() && actions->empty();
+            });
+        }
+    }
+}
+
+} // namespace
 
 EffectCatalog::EffectCatalog(GlobalModel* app) : app_(app) {
     for (const auto* name : cici::protocol::kEffectCatalogNames) {
@@ -80,6 +114,9 @@ bool EffectCatalog::applySnapshot(const nlohmann::json& body) {
         }
         EffectInfo effect;
         effect.id_ = item["id"].get<uint64_t>();
+        if (isTemporarilyHiddenEffect(effect.id_)) {
+            continue;
+        }
         effect.hv_ = item["hv"].get<uint32_t>();
         if (!item["package"].is_null()) {
             EffectAsset asset;
@@ -95,6 +132,7 @@ bool EffectCatalog::applySnapshot(const nlohmann::json& body) {
     }
 
     catalogs_ = *catalogs;
+    removeTemporarilyHiddenEffects(catalogs_);
     effects_ = std::move(effects);
     effectIndex_ = std::move(index);
     return true;
